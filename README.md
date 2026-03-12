@@ -122,10 +122,97 @@ nginx -T 2>&1 | ./dmz_webroot_scanner \
 
 ---
 
+## 추가 기능 소개
+
+### 프리셋
+반복적으로 같은 조합을 사용하는 운영자를 위해 내부에 다섯 가지 프리셋이 정의되어 있습니다:
+
+* `safe` : 운영 영향 최소화 중심 (짧은 깊이, 콘텐츠 스캔 비활성)
+* `balanced` : README 권장 설정과 유사한 기본 모드
+* `deep` : 탐색 범위 및 콘텐츠 샘플링을 강화
+* `handover` : 인수인계 시점 점검용 (깊이 제한, 콘텐츠 검사 제외)
+* `offboarding` : 담당자 교체/퇴직 전 점검용 (광범위 + 콘텐츠 검사)
+
+프리셋은 `--preset <name>`으로 지정하며, CLI가 명시적으로 설정한 값은 항상 우선합니다.
+
+### 설정 파일 지원
+CLI 대신 YAML 또는 JSON 파일을 통해 실행 구성을 지정할 수 있습니다. 예시:
+
+```yaml
+# scan_config.yaml
+preset: balanced
+server_type: nginx
+nginx_dump: -
+scan: true
+newer_than_h: 24
+max_depth: 12
+exclude:
+  - /var/cache
+workers: 4
+content_scan: true
+kafka:
+  enabled: true
+  brokers:
+    - broker1:9092
+    - broker2:9092
+  topic: dmz.scan.findings
+  mask_sensitive: true
+rules:
+  enable:
+    - high_risk_ext
+  disable:
+    - large_file
+```
+
+JSON 형태도 동일 스키마를 지원합니다. `--config <path>` 플래그로 파일을 지정하고, CLI 옵션은 파일의 설정을 덮어씁니다.
+
+### 서버 유형 & 입력 방식
+`--server-type nginx|apache|manual`을 통해 유형을 명시할 수 있으며,
+기본값(`--server-type` 미지정)도 기존 방식과 호환됩니다. 잘못된 조합을 사용하면 에러가 발생합니다.
+
+### 룰 세부 제어
+`--enable-rules`/`--disable-rules`로 개별 룰을 켜거나 끌 수 있습니다. 컴마 구분 또는 여러 번 반복 가능합니다.
+
+### Kafka 연계
+탐지 결과를 요약된 이벤트 형태로 Kafka에 전송할 수 있습니다.
+옵션 목록은 다음과 같습니다.
+
+* `--kafka-enabled` : 전송 활성화
+* `--kafka-brokers` : 브로커 목록
+* `--kafka-topic` : 전송 토픽
+* `--kafka-client-id` : 클라이언트 ID
+* `--kafka-tls` : TLS 사용 여부
+* `--kafka-sasl-enabled` : SASL 인증 사용 (현재 스텁)
+* `--kafka-username` : SASL 사용자
+* `--kafka-password-env` : 비밀번호가 저장된 환경변수 이름
+* `--kafka-mask-sensitive` : 민감정보 마스킹
+
+Kafka 전송 실패는 전체 스캔에 영향을 주지 않으며, 로컬 JSON 리포트는 항상 생성됩니다.
+
+### Kafka 이벤트 스키마 예시
+```json
+{
+  "host": "web01.example.com",
+  "generated_at": "2026-03-12T10:15:30Z",
+  "roots_count": 3,
+  "findings": [
+    {"path": "/var/www/html/config.php", "severity": "high", "reasons": ["high_risk_extension"]},
+    {"path": "/var/www/html/.env", "severity": "critical", "reasons": ["secret_patterns"]}
+  ]
+}
+```
+
+이러한 간략화된 이벤트는 SIEM/Flink 등으로 스트리밍되어 추가 분석에 활용할 수 있습니다.
+
+---
+
 ## 옵션 요약
 
 * 입력
 
+  * `--server-type nginx|apache|manual` : 웹서버 유형을 명시 (auto-detect 가능)
+  * `--config <path>` : YAML/JSON 설정 파일 (CLI 값이 우선)
+  * `--preset <name>` : 프리셋 선택 (safe, balanced, deep, handover, offboarding)
   * `--nginx-dump <path|->` : nginx -T 덤프 파일 또는 `-`(stdin)
   * `--apache-dump <path|->` : apachectl -S 덤프 파일 또는 `-`(stdin)
 
@@ -137,11 +224,13 @@ nginx -T 2>&1 | ./dmz_webroot_scanner \
   * `--max-depth <n>` : 재귀 깊이(기본 12)
   * `--newer-than-h <h>` : 최근 N시간 수정 파일만 평가(0=비활성)
 
-* 정책(allowlist)
+* 정책(allowlist) 및 룰 제어
 
   * `--allow-mime-prefix <prefix>` : 허용 MIME prefix(반복)
   * `--allow-ext <.ext>` : 허용 확장자(반복)
-  * (미지정 시 DMZ 정적 웹 서버 기준 기본 allowlist 적용)
+  * `--enable-rules <names>` : 추가 활성화할 룰(컴마 또는 반복)
+  * `--disable-rules <names>` : 비활성화할 룰
+  * (미지정 시 DMZ 정적 웹 서버 기준 기본 allowlist + 기본 룰셋)
 
 * 부하/성능
 

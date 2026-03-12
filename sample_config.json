@@ -1,0 +1,27 @@
+{
+  "preset": "balanced",
+  "server_type": "nginx",
+  "nginx_dump": "-",
+  "scan": true,
+  "newer_than_h": 24,
+  "max_depth": 12,
+  "exclude": ["/var/cache"],
+  "watch_dirs": ["/var/www/html"],
+  "workers": 4,
+  "content_scan": true,
+  "content_max_bytes": 65536,
+  "content_exts": [".yaml", ".yml"],
+  "kafka": {
+    "enabled": true,
+    "brokers": ["broker1:9092", "broker2:9092"],
+    "topic": "dmz.scan.findings",
+    "client_id": "dmz_scanner",
+    "tls": true,
+    "sasl_enabled": false,
+    "mask_sensitive": true
+  },
+  "rules": {
+    "enable": ["high_risk_ext", "secret_patterns"],
+    "disable": ["large_file"]
+  }
+}

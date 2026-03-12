@@ -30,6 +30,8 @@ type Report struct {
 	GeneratedAt   string           `json:"generated_at"`             // 리포트 생성 시간
 	Host          string           `json:"host,omitempty"`           // 스캔 실행 호스트명
 	Inputs        []string         `json:"inputs"`                   // 입력 소스 목록
+	Config        interface{}      `json:"config,omitempty"`         // 적용된 설정값 (CLI/파일/프리셋 합산)
+	ActiveRules   []string         `json:"active_rules,omitempty"`    // 최종 활성화된 룰 이름 목록
 	Roots         []root.RootEntry `json:"roots"`                    // 추출된 웹루트 목록
 	Findings      []Finding        `json:"findings"`                 // 검출된 의심 파일 목록
 	Stats         struct {         // 스캔 통계
