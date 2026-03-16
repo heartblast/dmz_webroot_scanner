@@ -510,8 +510,8 @@ PII (Personal Identifiable Information) detection feature for text-based files. 
 
 - **`ScanRoots(roots []root.RootEntry) ([]report.Finding, int)`** - Worker logic update
   - Added PII rule code handling in `matched_patterns` and `evidence_masked` arrays
-  - Supports PII rule names: resident_registration_number, foreigner_registration_number, passport_number, drivers_license, credit_card, bank_account, mobile_phone, email, birth_date
-
+  - Supports PII rule names: resident_registration_number, foreigner_registration_number, passport_number, drivers_license, credit_card, bank_account, mobile_phone, email
+  - Resident/foreigner registration number validation now includes birthdate validity (YYMMDD) and checksum verification (Korean RRN algorithm)
 #### Behavior Changes
 - Content sample reading is now triggered by either content-scan or pii-scan flags
 - PII findings are integrated into existing `MatchedPatterns` and `EvidenceMasked` fields

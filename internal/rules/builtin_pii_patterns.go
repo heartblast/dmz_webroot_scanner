@@ -83,7 +83,6 @@ func detectPIIPatterns(sample string, useContext bool) []PIIMatchedPattern {
 		{Name: "bank_account", Severity: SevHigh, Patterns: bankAccountPatterns()},
 		{Name: "mobile_phone", Severity: SevMedium, Patterns: mobilePhonePatterns()},
 		{Name: "email", Severity: SevMedium, Patterns: emailPatterns()},
-		{Name: "birth_date", Severity: SevMedium, Patterns: birthDatePatterns()},
 	}
 
 	for _, piiType := range piiTypes {
@@ -140,7 +139,8 @@ func detectPIIType(sample string, piiType PIIType, useContext bool) *PIIMatchedP
 	}
 
 	// 검증 수행
-	matchStatus, confidence := validatePIIMatches(rawMatches, piiType.Name)
+	hasContext := len(evidenceKeywords) > 0
+	matchStatus, confidence := validatePIIMatches(rawMatches, piiType.Name, hasContext)
 
 	// 파일 클래스 결정
 	fileClass := determineFileClass(sample)
@@ -159,7 +159,7 @@ func detectPIIType(sample string, piiType PIIType, useContext bool) *PIIMatchedP
 }
 
 // validatePIIMatches: 매치 검증 및 상태 결정
-func validatePIIMatches(matches []string, ruleName string) (string, string) {
+func validatePIIMatches(matches []string, ruleName string, hasContext bool) (string, string) {
 	if len(matches) == 0 {
 		return "weak_match", "low"
 	}
@@ -172,49 +172,46 @@ func validatePIIMatches(matches []string, ruleName string) (string, string) {
 		case "resident_registration_number":
 			if validateResidentRegistrationNumber(match) {
 				validated++
-			} else if hasContextKeywords(match) {
+			} else if hasContext {
 				suspected++
 			}
 		case "foreigner_registration_number":
 			if validateForeignerRegistrationNumber(match) {
 				validated++
-			} else if hasContextKeywords(match) {
+			} else if hasContext {
 				suspected++
 			}
 		case "credit_card":
 			if validateCreditCard(match) {
 				validated++
-			} else if hasContextKeywords(match) {
+			} else if hasContext {
 				suspected++
 			}
 		case "email":
 			if validateEmail(match) {
 				validated++
-			} else if hasContextKeywords(match) {
+			} else if hasContext {
 				suspected++
 			}
 		case "mobile_phone":
 			if validateMobilePhone(match) {
 				validated++
-			} else if hasContextKeywords(match) {
-				suspected++
-			}
-		case "birth_date":
-			if validateBirthDate(match) {
-				validated++
-			} else if hasContextKeywords(match) {
+			} else if hasContext {
 				suspected++
 			}
 		default:
 			// 다른 유형은 패턴 매치만으로 suspected
-			if hasContextKeywords(match) {
+			if hasContext {
 				suspected++
 			}
 		}
 	}
 
 	if validated > 0 {
-		return "validated", "high"
+		if hasContext {
+			return "validated", "high"
+		}
+		return "validated", "medium"
 	} else if suspected > 0 {
 		return "suspected", "medium"
 	} else {
@@ -359,22 +356,23 @@ func emailPatterns() []PIIPattern {
 	}
 }
 
-func birthDatePatterns() []PIIPattern {
-	re := regexp.MustCompile(`\b\d{4}[./-]?\d{2}[./-]?\d{2}\b`)
-	return []PIIPattern{
-		{
-			Regex:       re,
-			Validator:   validateBirthDate,
-			Masker:      maskBirthDate,
-			ContextKeys: []string{"birth", "birthday", "dob", "생년월일"},
-		},
-	}
-}
-
 // 검증 함수들
 
 func validateResidentRegistrationNumber(s string) bool {
-	// 간단한 형식 검증 (실제 체크섬 검증은 생략)
+	// 주민등록번호는 생년월일 + 체크디지트 유효성 검증 필요
+	return validateKoreanRRN(s, '1', '4')
+}
+
+func validateForeignerRegistrationNumber(s string) bool {
+	// 외국인등록번호는 첫번째 숫자가 5-8
+	return validateKoreanRRN(s, '5', '8')
+}
+
+// validateKoreanRRN: 주민등록번호/외국인등록번호 검증
+// - 13자리(6+7) 형식
+// - 앞 6자리를 생년월일로 해석해 날짜 유효성 검증
+// - 체크디지트 검증 (한국 법적 계산 방식)
+func validateKoreanRRN(s string, minHead, maxHead byte) bool {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
 		return false
@@ -382,26 +380,64 @@ func validateResidentRegistrationNumber(s string) bool {
 	if len(parts[0]) != 6 || len(parts[1]) != 7 {
 		return false
 	}
-	// 첫 글자가 1-4
-	if parts[1][0] < '1' || parts[1][0] > '4' {
+	head := parts[1][0]
+	if head < minHead || head > maxHead {
+		return false
+	}
+
+	// 생년월일 추출 및 검증
+	if !isValidRRNBirth(parts[0], head) {
+		return false
+	}
+
+	// 체크디지트 검증
+	return validateRRNChecksum(parts[0] + parts[1])
+}
+
+// isValidRRNBirth: RRN 앞 6자리를 사용해 생년월일 유효성을 확인
+// head는 뒤 7자리 첫 숫자로 세기(1900/2000 구분)
+func isValidRRNBirth(yyyymmdd string, head byte) bool {
+	if len(yyyymmdd) != 6 {
+		return false
+	}
+	year, _ := strconv.Atoi(yyyymmdd[:2])
+	month, _ := strconv.Atoi(yyyymmdd[2:4])
+	day, _ := strconv.Atoi(yyyymmdd[4:6])
+
+	century := 1900
+	if head == '3' || head == '4' || head == '7' || head == '8' {
+		century = 2000
+	}
+	fullYear := century + year
+
+	// 날짜 유효성 검증 (time.Date로 체크)
+	if month < 1 || month > 12 || day < 1 || day > 31 {
+		return false
+	}
+	if fullYear < 1900 || fullYear > time.Now().Year() {
+		return false
+	}
+	if time.Date(fullYear, time.Month(month), day, 0, 0, 0, 0, time.UTC).Month() != time.Month(month) {
 		return false
 	}
 	return true
 }
 
-func validateForeignerRegistrationNumber(s string) bool {
-	parts := strings.Split(s, "-")
-	if len(parts) != 2 {
+// validateRRNChecksum: 주민등록번호 체크디지트 계산 (국내 법적 방식)
+func validateRRNChecksum(rrn string) bool {
+	// rrn은 13자리 숫자 (연월일+7자리)
+	if len(rrn) != 13 {
 		return false
 	}
-	if len(parts[0]) != 6 || len(parts[1]) != 7 {
-		return false
+	weights := []int{2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5}
+	sum := 0
+	for i := 0; i < 12; i++ {
+		d := int(rrn[i] - '0')
+		sum += d * weights[i]
 	}
-	// 첫 글자가 5-8
-	if parts[1][0] < '5' || parts[1][0] > '8' {
-		return false
-	}
-	return true
+	check := (11 - (sum % 11)) % 10
+	last := int(rrn[12] - '0')
+	return check == last
 }
 
 func validateCreditCard(s string) bool {
@@ -438,52 +474,6 @@ func validateEmail(s string) bool {
 func validateMobilePhone(s string) bool {
 	// 한국 휴대전화 형식
 	return strings.HasPrefix(s, "010") || strings.HasPrefix(s, "011") || strings.HasPrefix(s, "016") || strings.HasPrefix(s, "017") || strings.HasPrefix(s, "018") || strings.HasPrefix(s, "019")
-}
-
-func validateBirthDate(s string) bool {
-	// 날짜 유효성 검증
-	year := 0
-	month := 0
-	day := 0
-	if strings.Contains(s, "/") {
-		parts := strings.Split(s, "/")
-		if len(parts) == 3 {
-			year, _ = strconv.Atoi(parts[0])
-			month, _ = strconv.Atoi(parts[1])
-			day, _ = strconv.Atoi(parts[2])
-		}
-	} else if strings.Contains(s, "-") {
-		parts := strings.Split(s, "-")
-		if len(parts) == 3 {
-			year, _ = strconv.Atoi(parts[0])
-			month, _ = strconv.Atoi(parts[1])
-			day, _ = strconv.Atoi(parts[2])
-		}
-	} else if strings.Contains(s, ".") {
-		parts := strings.Split(s, ".")
-		if len(parts) == 3 {
-			year, _ = strconv.Atoi(parts[0])
-			month, _ = strconv.Atoi(parts[1])
-			day, _ = strconv.Atoi(parts[2])
-		}
-	} else {
-		// YYYYMMDD
-		if len(s) == 8 {
-			year, _ = strconv.Atoi(s[:4])
-			month, _ = strconv.Atoi(s[4:6])
-			day, _ = strconv.Atoi(s[6:])
-		}
-	}
-	if year < 1900 || year > time.Now().Year() {
-		return false
-	}
-	if month < 1 || month > 12 {
-		return false
-	}
-	if day < 1 || day > 31 {
-		return false
-	}
-	return true
 }
 
 // 마스킹 함수들
@@ -544,10 +534,6 @@ func maskEmail(s string) string {
 	return local + "***" + s[at:]
 }
 
-func maskBirthDate(s string) string {
-	return s // 날짜는 그대로
-}
-
 func maskGeneric(s string) string {
 	if len(s) > 10 {
 		return s[:5] + "***"
@@ -557,9 +543,9 @@ func maskGeneric(s string) string {
 
 // 헬퍼 함수들
 
-func hasContextKeywords(match string) bool {
-	// 간단히 true로 가정 (실제로는 주변 텍스트 분석 필요)
-	return true
+func hasContextKeywords(_ string) bool {
+	// 더 이상 사용되지 않음. context 키워드는 detectPIIType에서 계산되어 전달됨.
+	return false
 }
 
 func findContextKeywords(sample string, contextKeys []string) []string {
