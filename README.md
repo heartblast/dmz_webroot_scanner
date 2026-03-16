@@ -366,9 +366,6 @@ Kafka 전송 실패는 전체 스캔에 영향을 주지 않으며, 로컬 JSON 
 **이메일 관련**
 * `email` : 이메일 주소 패턴 (medium, validated/suspected/weak_match)
 
-**생년월일 관련**
-* `birth_date` : 생년월일 패턴 (medium, validated/suspected/weak_match)
-
 **위험한 조합 탐지 (높은 우선순위)**
 * `combo_jdbc_with_credentials` : JDBC URL + 비밀번호 (critical)
 * `combo_datasource_with_credentials` : datasource + username + password (critical)

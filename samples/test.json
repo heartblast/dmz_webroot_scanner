@@ -107,8 +107,7 @@
       "reasons": [
         "mime_not_in_allowlist",
         "resident_registration_number",
-        "mobile_phone",
-        "birth_date"
+        "mobile_phone"
       ],
       "url_exposure_heuristic": "potentially_web_reachable",
       "root_matched": "test_pii.yaml",
@@ -116,13 +115,11 @@
       "severity": "critical",
       "matched_patterns": [
         "resident_registration_number",
-        "mobile_phone",
-        "birth_date"
+        "mobile_phone"
       ],
       "evidence_masked": [
         "901010-1******",
-        "010-123**-****",
-        "1234-5678; 1990-10-09"
+        "010-123**-****"
       ]
     }
   ],

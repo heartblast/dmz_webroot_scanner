@@ -96,8 +96,7 @@ func (s *Scanner) ScanRoots(roots []root.RootEntry) ([]report.Finding, int) {
 						strings.HasPrefix(r.Code, "credit_card") ||
 						strings.HasPrefix(r.Code, "bank_account") ||
 						strings.HasPrefix(r.Code, "mobile_phone") ||
-						strings.HasPrefix(r.Code, "email") ||
-						strings.HasPrefix(r.Code, "birth_date") {
+						strings.HasPrefix(r.Code, "email") {
 						f.MatchedPatterns = append(f.MatchedPatterns, r.Code)
 						if r.Message != "" {
 							f.EvidenceMasked = append(f.EvidenceMasked, r.Message)

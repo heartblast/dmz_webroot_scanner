@@ -536,7 +536,7 @@ PII (Personal Identifiable Information) detection feature for text-based files. 
 
 #### New Functions
 - **`detectPIIPatterns(sample string, useContext bool) []PIIMatchedPattern`** - Main detection logic
-  - Supports 9 PII types: resident/foreigner registration, passport, drivers license, credit card, bank account, mobile phone, email, birth date
+  - Supports 8 PII types: resident/foreigner registration, passport, drivers license, credit card, bank account, mobile phone, email
 
 - **`validatePIIMatches(matches []string, ruleName string) (string, string)`** - Status/confidence determination
   - Returns match_status: validated/suspected/weak_match
@@ -548,7 +548,6 @@ PII (Personal Identifiable Information) detection feature for text-based files. 
   - `validateCreditCard` - Luhn algorithm
   - `validateEmail` - Basic format check
   - `validateMobilePhone` - Korean format check
-  - `validateBirthDate` - Date validity check
 
 - **Masking Functions** - Per PII type
   - `maskResidentRegistrationNumber` - `901010-1******`
