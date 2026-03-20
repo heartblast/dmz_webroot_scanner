@@ -198,17 +198,20 @@ with right:
         use_container_width=True,
     )
 
-    st.markdown("#### 설정파일 미리보기 (YAML)")
-    yaml_text = yaml.safe_dump(config_payload, allow_unicode=True, sort_keys=False) if yaml else json.dumps(config_payload, ensure_ascii=False, indent=2)
-    st.code(yaml_text, language="yaml")
+    st.markdown("#### YAML Preview")
+    if yaml is None:
+        st.warning("PyYAML is not installed. Install it with `pip install pyyaml` to preview or download YAML config files.")
+    else:
+        yaml_text = yaml.safe_dump(config_payload, allow_unicode=True, sort_keys=False)
+        st.code(yaml_text, language="yaml")
 
-    st.download_button(
-        "YAML 다운로드",
-        data=yaml_text.encode("utf-8"),
-        file_name="dmz_scan_config.yaml",
-        mime="text/yaml",
-        use_container_width=True,
-    )
+        st.download_button(
+            "Download YAML",
+            data=yaml_text.encode("utf-8"),
+            file_name="dmz_scan_config.yaml",
+            mime="text/yaml",
+            use_container_width=True,
+        )
 
     st.markdown("#### 설정파일 미리보기 (JSON)")
     json_text = json.dumps(config_payload, ensure_ascii=False, indent=2)

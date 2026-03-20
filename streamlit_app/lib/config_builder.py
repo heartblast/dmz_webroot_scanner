@@ -168,6 +168,8 @@ def build_config() -> dict:
 
 def build_config_payload(config: dict):
     """Build configuration payload for YAML/JSON export"""
+    kafka_brokers = [x.strip() for x in config["kafka_brokers"].split(",") if x.strip()]
+
     return {
         "server_type": config["server_type"],
         "scan": True,
@@ -184,13 +186,13 @@ def build_config_payload(config: dict):
         "enable_rules": config["enable_rules"],
         "disable_rules": config["disable_rules"],
         "content_scan": config["content_scan"],
-        "content_max_bytes": config["content_max_bytes"] if config["content_scan"] else None,
-        "content_max_size_kb": config["content_max_size_kb"] if config["content_scan"] else None,
+        "content_max_bytes": config["content_max_bytes"] if config["content_scan"] else 0,
+        "content_max_size_kb": config["content_max_size_kb"] if config["content_scan"] else 0,
         "content_ext": config["content_exts"] if config["content_scan"] else [],
         "pii_scan": config["pii_scan"],
-        "pii_max_bytes": config["pii_max_bytes"] if config["pii_scan"] else None,
-        "pii_max_size_kb": config["pii_max_size_kb"] if config["pii_scan"] else None,
-        "pii_max_matches": config["pii_max_matches"] if config["pii_scan"] else None,
+        "pii_max_bytes": config["pii_max_bytes"] if config["pii_scan"] else 0,
+        "pii_max_size_kb": config["pii_max_size_kb"] if config["pii_scan"] else 0,
+        "pii_max_matches": config["pii_max_matches"] if config["pii_scan"] else 0,
         "pii_ext": config["pii_exts"] if config["pii_scan"] else [],
         "pii_mask": config["pii_mask"] if config["pii_scan"] else False,
         "pii_store_sample": config["pii_store_sample"] if config["pii_scan"] else False,
@@ -198,13 +200,13 @@ def build_config_payload(config: dict):
         "out": config["output_path"],
         "kafka": {
             "enabled": config["kafka_enabled"],
-            "brokers": [x.strip() for x in config["kafka_brokers"].split(",") if x.strip()],
+            "brokers": kafka_brokers if config["kafka_enabled"] else [],
             "topic": config["kafka_topic"],
             "client_id": config["kafka_client_id"],
-            "tls": config["kafka_tls"],
-            "sasl_enabled": config["kafka_sasl_enabled"],
-            "username": config["kafka_username"],
-            "password_env": config["kafka_password_env"],
-            "mask_sensitive": config["kafka_mask_sensitive"],
+            "tls": config["kafka_tls"] if config["kafka_enabled"] else False,
+            "sasl_enabled": config["kafka_sasl_enabled"] if config["kafka_enabled"] else False,
+            "username": config["kafka_username"] if config["kafka_enabled"] else "",
+            "password_env": config["kafka_password_env"] if config["kafka_enabled"] else "",
+            "mask_sensitive": config["kafka_mask_sensitive"] if config["kafka_enabled"] else False,
         },
     }
