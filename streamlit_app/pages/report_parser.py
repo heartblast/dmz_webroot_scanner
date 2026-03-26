@@ -1,29 +1,27 @@
-import json
-from collections import Counter
-from datetime import datetime
-
-import pandas as pd
 import streamlit as st
 
-from lib.constants import SEVERITY_ORDER, SEVERITY_EMOJI, REASON_LABELS
-from lib.utils import safe_json_load, normalize_list, fmt_dt, fmt_bytes, severity_rank
 from lib.report_parser import (
     build_findings_df,
-    render_summary,
-    render_root_table,
+    interpret_finding,
     render_counters,
     render_filters,
-    interpret_finding,
+    render_root_table,
+    render_summary,
 )
+from lib.utils import fmt_dt, normalize_list, safe_json_load
+from utils.meaning_loader import get_pattern_meaning, get_reason_meaning
 
 
-st.title("🛡️ DMZ 웹루트 스캔 결과 해석기")
-st.caption("dmz_webroot_scanner JSON 결과를 업로드하면 위험도, 탐지사유, 루트경로, 세부 증거를 해석해줍니다.")
+st.title("DMZ 스캔 결과 해석기")
+st.caption(
+    "dmz_webroot_scanner JSON 결과를 업로드하면 위험도, 탐지사유, 루트 경로, "
+    "마스킹된 증거를 해석해 보여줍니다."
+)
 
 uploaded = st.file_uploader("JSON 결과 파일 업로드", type=["json"])
 
 if not uploaded:
-    st.info("dmz_webroot_scanner의 결과 JSON 파일을 업로드하세요.")
+    st.info("dmz_webroot_scanner 결과 JSON 파일을 업로드해 주세요.")
     st.stop()
 
 report = safe_json_load(uploaded)
@@ -57,12 +55,16 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(
 with tab1:
     if findings:
         findings_df = build_findings_df(findings)
-        render_counters(findings_df)
+        render_counters(
+            findings_df,
+            reason_meaning_getter=get_reason_meaning,
+            pattern_meaning_getter=get_pattern_meaning,
+        )
     else:
-        st.success("findings 가 없습니다. 탐지된 항목이 없는 리포트입니다.")
+        st.success("findings가 없습니다. 탐지 항목이 없는 리포트입니다.")
 
 with tab2:
-    st.markdown("### 추출된 웹서빙 경로")
+    st.markdown("### 추출된 루트 경로")
     render_root_table(roots)
 
 with tab3:
@@ -94,9 +96,12 @@ with tab3:
 
         if len(filtered_df) > 0:
             selected_idx = st.selectbox(
-                "상세 해석할 항목 선택",
+                "상세 해석 대상 선택",
                 options=filtered_df.index.tolist(),
-                format_func=lambda i: f"[{filtered_df.loc[i, 'severity']}] {filtered_df.loc[i, 'path']}",
+                format_func=lambda index: (
+                    f"[{filtered_df.loc[index, 'severity']}] "
+                    f"{filtered_df.loc[index, 'path']}"
+                ),
             )
             row = filtered_df.loc[selected_idx]
 
@@ -105,7 +110,7 @@ with tab3:
 
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown("#### 메타정보")
+                st.markdown("#### 메타 정보")
                 st.write(f"**path**: {row['path']}")
                 st.write(f"**real_path**: {row['real_path'] or '-'}")
                 st.write(f"**root_matched**: {row['root_matched'] or '-'}")
@@ -122,7 +127,8 @@ with tab3:
                 st.write(f"**severity**: {row['severity']}")
                 st.write(f"**reasons**: {', '.join(row['reasons']) if row['reasons'] else '-'}")
                 st.write(
-                    f"**matched_patterns**: {', '.join(row['matched_patterns']) if row['matched_patterns'] else '-'}"
+                    "**matched_patterns**: "
+                    f"{', '.join(row['matched_patterns']) if row['matched_patterns'] else '-'}"
                 )
                 st.write(
                     f"**content_flags**: {', '.join(row['content_flags']) if row['content_flags'] else '-'}"
@@ -131,10 +137,10 @@ with tab3:
                     f"**url_exposure_heuristic**: {row['url_exposure_heuristic'] or '-'}"
                 )
 
-            st.markdown("#### 마스킹 증거")
+            st.markdown("#### 마스킹된 증거")
             if row["evidence_masked"]:
-                for ev in row["evidence_masked"]:
-                    st.code(ev)
+                for evidence in row["evidence_masked"]:
+                    st.code(evidence)
             else:
                 st.info("evidence_masked 값이 없습니다.")
 
