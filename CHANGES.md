@@ -1,5 +1,47 @@
 # Changelog - DMZ Webroot Scanner
 
+## [v1.1.3] - 2026-03-27
+
+### Release Summary
+- Added best-effort host metadata collection to JSON reports with `host.hostname`, `host.ip_addresses`, `host.primary_ip`, and `host.os_type`
+- Included optional OS detail fields such as `host.os_name`, `host.os_version`, `host.platform`, and host metadata collection time
+- Improved console execution feedback with start/progress/completion/error/summary messages for batch and operator visibility
+- Updated DetectBot Portal inventory / scan result flows and Streamlit report parser to display host identification data with backward compatibility for legacy reports
+- Added DetectBot Portal `탐지결과조회` page for server/run-based detailed report analysis using stored reports
+- Bumped application and UI version strings to `v1.1.3` and refreshed report samples plus README documentation
+
+### Detailed Changes
+
+#### **internal/systeminfo/hostinfo.go** - New Host Metadata Collector
+- Added hostname, network interface IP, normalized OS type, and platform collection using the Go standard library
+- Added best-effort Linux and macOS OS detail parsing while keeping scan execution non-blocking on metadata lookup failures
+- Added unit tests for required field population and OS normalization behavior
+
+#### **internal/report/model.go / cmd/dmz_webroot_scanner/main.go**
+- Expanded the top-level report schema so `host` is now a structured object instead of a plain string
+- Attached collected host metadata to the report before scan execution
+- Added operator-friendly console logs for scan start, root discovery, filesystem scan progress, completion, failure, and final summary output
+- Updated the binary version constant to `v1.1.3`
+
+#### **detectbot_portal/pages/01_server_inventory.py**
+- Reflected hostname, primary IP, OS type, and OS detail information in server inventory and edit flows
+
+#### **detectbot_portal/pages/02_scan_results.py**
+- Exposed hostname, primary IP, and OS type in scan result filtering, selection, and detail views
+- Added a direct link from selected scan runs to the detailed report viewer page
+
+#### **streamlit_app/pages/report_parser.py**
+- Added host summary rendering for uploaded reports and preserved compatibility with older reports that only contain a string `host`
+
+#### **detectbot_portal/pages/05_detection_report_viewer.py**
+- Added a new Portal-native detailed report viewer page
+- Supports server selection, scan run selection, stored report loading, parser-style tabs, findings filters, findings interpretation, config view, and raw JSON inspection
+- Reuses stored report files instead of requiring manual JSON upload
+
+#### **README.md / samples/**
+- Refreshed the sample report JSON to show the structured `host` metadata block
+- Documented that operators can identify the scanned server directly from the report and the Streamlit UI
+
 ## [Unreleased] - 2026-03-23
 
 ### Release Summary

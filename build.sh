@@ -5,12 +5,12 @@ APP_NAME="dmz_webroot_scanner"
 MAIN_PKG="./cmd/dmz_webroot_scanner"
 DIST_DIR="dist"
 
-VERSION="1.1.2"
+VERSION="1.1.3"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 VERSION_SUFFIX="${VERSION//./_}"
-LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildTime=${BUILD_TIME}"
+LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}"
 
 rm -rf "${DIST_DIR}"
 mkdir -p "${DIST_DIR}"

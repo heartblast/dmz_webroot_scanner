@@ -274,6 +274,18 @@ def input_type_badge_text(value):
     return INPUT_TYPE_LABELS.get((value or "").lower(), value or "미분류")
 
 
+def host_identity_text(hostname="", primary_ip="", os_type=""):
+    parts = [part for part in [hostname or "", primary_ip or "", (os_type or "").upper()] if part]
+    return " / ".join(parts) if parts else "-"
+
+
+def host_os_label(os_type="", os_name="", platform=""):
+    parts = [part for part in [os_name or "", platform or ""] if part]
+    if parts:
+        return " / ".join(parts)
+    return (os_type or "-").upper()
+
+
 def _pill_html(label, css_class):
     return f"<span class='portal-pill {css_class}'>{html.escape(str(label))}</span>"
 
@@ -338,7 +350,7 @@ def _selected_server_markup(server, context_label, hint, css_class):
     <div class="{css_class}">
         <h4>{html.escape(context_label)}</h4>
         <h3>{html.escape(server.get('server_name') or '-')}</h3>
-        <div class="meta">{html.escape(server.get('hostname') or '-')} / {html.escape(server.get('ip_address') or '-')}</div>
+        <div class="meta">{html.escape(host_identity_text(server.get('hostname'), server.get('ip_address'), server.get('os_type')))}</div>
         {criticality_pill(server.get("criticality"))}
         {status_pill(server.get("is_active"))}
         {env_pill(server.get("environment"))}
@@ -353,7 +365,7 @@ def render_selected_server_banner(server, context_label="현재 선택 서버"):
         st.markdown(
             """
             <div class="selected-server-empty">
-                현재 선택된 서버가 없습니다. 빠른 서버 선택 카드 또는 보조 선택기에서 서버를 선택해 주세요.
+                현재 선택된 서버가 없습니다. 서버 인벤토리 목록에서 서버를 선택해 주세요.
             </div>
             """,
             unsafe_allow_html=True,
@@ -400,7 +412,12 @@ def build_server_inventory_display_df(df: pd.DataFrame):
     display = df.copy()
     display["서버명"] = display["server_name"]
     display["Hostname"] = display["hostname"].fillna("")
-    display["IP"] = display["ip_address"].fillna("")
+    display["Primary IP"] = display["ip_address"].fillna("")
+    display["OS"] = display["os_type"].fillna("").str.lower()
+    display["OS Detail"] = display.apply(
+        lambda row: host_os_label(row.get("os_type"), row.get("os_name"), row.get("platform")),
+        axis=1,
+    )
     display["운영구분"] = display["environment"].apply(env_badge_text)
     display["Zone"] = display["zone"].apply(zone_badge_text)
     display["중요도"] = display["criticality"].apply(criticality_badge_text)
@@ -414,7 +431,9 @@ def build_server_inventory_display_df(df: pd.DataFrame):
         [
             "서버명",
             "Hostname",
-            "IP",
+            "Primary IP",
+            "OS",
+            "OS Detail",
             "운영구분",
             "Zone",
             "중요도",
@@ -427,28 +446,6 @@ def build_server_inventory_display_df(df: pd.DataFrame):
     ]
 
 
-def style_server_inventory_table(df: pd.DataFrame):
-    if df is None or df.empty:
-        return df
-
-    def style_level(value):
-        mapping = {
-            "Critical": "background-color:#fee2e2;color:#991b1b;font-weight:700;",
-            "High": "background-color:#ffedd5;color:#9a3412;font-weight:700;",
-            "Medium": "background-color:#fef3c7;color:#92400e;font-weight:700;",
-            "Low": "background-color:#dcfce7;color:#166534;font-weight:700;",
-            "운영중": "background-color:#dcfce7;color:#166534;font-weight:700;",
-            "비활성": "background-color:#e5e7eb;color:#374151;font-weight:700;",
-            "가능": "background-color:#dbeafe;color:#1d4ed8;font-weight:700;",
-            "제한": "background-color:#e5e7eb;color:#475569;font-weight:700;",
-            "PROD": "background-color:#fee2e2;color:#991b1b;font-weight:700;",
-            "DMZ": "background-color:#fee2e2;color:#991b1b;font-weight:700;",
-        }
-        return mapping.get(value, "")
-
-    return df.style.map(style_level, subset=["중요도", "상태", "업로드", "운영구분", "Zone"])
-
-
 def build_scan_run_display_df(df: pd.DataFrame):
     if df is None or df.empty:
         return df
@@ -456,7 +453,9 @@ def build_scan_run_display_df(df: pd.DataFrame):
     display = df.copy()
     display["최신"] = display["latest_for_server"].apply(lambda value: "최신" if value else "")
     display["서버명"] = display["server_name"].fillna("미연결 서버")
-    display["Hostname"] = display["hostname"].fillna("")
+    display["Hostname"] = display["host_hostname"].fillna(display["hostname"]).fillna("")
+    display["Primary IP"] = display["host_primary_ip"].fillna(display["ip_address"]).fillna("")
+    display["OS"] = display["host_os_type"].fillna(display["os_type"]).fillna("")
     display["입력 유형"] = display["input_type"].apply(input_type_badge_text)
     display["정책"] = display["policy_name"].fillna("정책 미지정")
     display["탐지 건수"] = display["findings_count"].fillna(0).astype(int)
@@ -469,6 +468,8 @@ def build_scan_run_display_df(df: pd.DataFrame):
             "최신",
             "서버명",
             "Hostname",
+            "Primary IP",
+            "OS",
             "입력 유형",
             "정책",
             "탐지 건수",
@@ -502,7 +503,7 @@ def style_scan_run_table(df: pd.DataFrame):
 def render_server_identity(server):
     st.markdown(
         f"### {server.get('server_name', '-')}\n"
-        f"`{server.get('hostname') or '-'} / {server.get('ip_address') or '-'}`"
+        f"`{host_identity_text(server.get('hostname'), server.get('ip_address'), server.get('os_type'))}`"
     )
 
 
@@ -521,49 +522,12 @@ def render_server_overview(server):
 
     info_col1, info_col2 = st.columns(2)
     with info_col1:
+        st.write(f"**OS Detail**: {host_os_label(server.get('os_type'), server.get('os_name'), server.get('platform'))}")
         st.write(f"**담당자 / 부서**: {server.get('owner_name') or '-'}")
         st.write(f"**생성 시각**: {server.get('created_at') or '-'}")
     with info_col2:
         st.write(f"**수정 시각**: {server.get('updated_at') or '-'}")
         st.write(f"**비고**: {server.get('notes') or '-'}")
-
-
-def render_server_selection_cards(df: pd.DataFrame, selected_server_id, key_prefix="inventory-card"):
-    if df is None or df.empty:
-        st.info("선택 가능한 서버가 없습니다.")
-        return selected_server_id
-
-    card_df = df.head(8).copy()
-    next_selected = selected_server_id
-
-    st.markdown("### 빠른 서버 선택")
-    st.caption("운영 우선순위가 높은 서버를 카드로 먼저 보여줍니다. 카드를 눌러 상세/수정 대상으로 선택해 주세요.")
-
-    columns = st.columns(2)
-    for index, (_, row) in enumerate(card_df.iterrows()):
-        with columns[index % 2]:
-            selected = row["id"] == selected_server_id
-            css_class = "server-card selected" if selected else "server-card"
-            st.markdown(
-                f"""
-                <div class="{css_class}">
-                    <h4>{html.escape(row.get("server_name") or "-")}</h4>
-                    <div class="meta">{html.escape(row.get("hostname") or "-")} / {html.escape(row.get("ip_address") or "-")}</div>
-                    {criticality_pill(row.get("criticality"))}
-                    {status_pill(row.get("is_active"))}
-                    {upload_pill(row.get("upload_enabled"))}
-                    {env_pill(row.get("environment"))}
-                    {zone_pill(row.get("zone"))}
-                    <div class="service">{html.escape(row.get("service_name") or "서비스 미정")}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            label = "현재 선택됨" if selected else "이 서버 선택"
-            if st.button(label, key=f"{key_prefix}-{row['id']}", width="stretch", disabled=selected):
-                next_selected = row["id"]
-
-    return next_selected
 
 
 def render_run_selection_cards(df: pd.DataFrame, selected_run_id, key_prefix="run-card"):
@@ -586,12 +550,12 @@ def render_run_selection_cards(df: pd.DataFrame, selected_run_id, key_prefix="ru
                 f"""
                 <div class="{css_class}">
                     <h4>{html.escape(row.get("server_name") or "미연결 서버")}</h4>
-                    <div class="meta">{html.escape(row.get("generated_at") or row.get("scan_started_at") or "-")}</div>
+                    <div class="meta">{html.escape(host_identity_text(row.get("host_hostname") or row.get("hostname"), row.get("host_primary_ip") or row.get("ip_address"), row.get("host_os_type") or row.get("os_type")))}</div>
                     {latest_run_pill(row.get("latest_for_server"))}
                     {findings_count_pill(row.get("findings_count"))}
                     {input_type_pill(row.get("input_type"))}
                     <div class="service">{html.escape(row.get("policy_name") or "정책 미지정")}</div>
-                    <div class="hint">루트 {int(row.get("roots_count") or 0)}개 / 스캔 파일 {int(row.get("scanned_files") or 0)}개</div>
+                    <div class="hint">{html.escape(row.get("generated_at") or row.get("scan_started_at") or "-")} / 루트 {int(row.get("roots_count") or 0)}개 / 스캔 파일 {int(row.get("scanned_files") or 0)}개</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -619,7 +583,12 @@ def render_scan_run_overview(run):
     info_col1, info_col2 = st.columns(2)
     with info_col1:
         st.write(f"**실행 시각**: {run.get('scan_started_at') or run.get('generated_at') or '-'}")
-        st.write(f"**Hostname**: {run.get('hostname') or '-'}")
+        st.write(
+            f"**Host**: {host_identity_text(run.get('host_hostname') or run.get('hostname'), run.get('host_primary_ip') or run.get('ip_address'), run.get('host_os_type') or run.get('os_type'))}"
+        )
+        st.write(
+            f"**OS Detail**: {host_os_label(run.get('host_os_type') or run.get('os_type'), run.get('host_os_name') or run.get('os_name'), run.get('host_platform') or run.get('platform'))}"
+        )
         st.write(f"**환경 / Zone**: {env_badge_text(run.get('environment'))} / {zone_badge_text(run.get('zone'))}")
         st.write(f"**리포트 파일**: {run.get('file_name') or '-'}")
     with info_col2:

@@ -18,7 +18,7 @@ from lib.ui import (
 
 st.set_page_config(
     page_title="DetectBot Portal",
-    page_icon="🛰️",
+    page_icon="🛡️",
     layout="wide",
 )
 
@@ -27,7 +27,7 @@ bootstrap_demo_data()
 
 render_portal_header(
     "DetectBot Portal",
-    "서버 자산, 점검 결과, 탐지 상세, 정책 설정을 누적 관리하는 1단계 운영 포털입니다.",
+    "서버 자산, 점검 결과, 탐지 상세, 정책 설정을 추적 관리하는 1단계 운영 포털입니다.",
 )
 
 with st.sidebar:
@@ -39,6 +39,7 @@ with st.sidebar:
     st.page_link("pages/02_scan_results.py", label="점검 결과 관리")
     st.page_link("pages/03_findings.py", label="탐지 상세 조회")
     st.page_link("pages/04_policies.py", label="정책 / 옵션 관리")
+    st.page_link("pages/05_detection_report_viewer.py", label="탐지결과조회")
 
 metrics = dashboard_metrics()
 render_metric_cards(metrics)
@@ -55,9 +56,9 @@ with left:
     dataframe_or_info(runs_df, "등록된 점검 이력이 없습니다.")
 
 with right:
-    st.markdown("### 최근 많이 발생한 탐지사유")
+    st.markdown("### 최근 많이 발생한 탐지 사유")
     reasons_df = top_reason_counts(limit=10)
-    dataframe_or_info(reasons_df, "탐지사유 집계가 없습니다.")
+    dataframe_or_info(reasons_df, "탐지 사유 집계가 없습니다.")
     if reasons_df is not None and not reasons_df.empty:
         st.bar_chart(reasons_df.set_index("reason_code")["count"])
 
@@ -76,7 +77,7 @@ with table_col:
 
 st.markdown("## 2단계 확장 메모")
 st.info(
-    "현재 1단계는 DuckDB 기반 누적 관리 MVP입니다. 2단계에서는 일자별 추이 테이블, "
+    "현재 1단계는 DuckDB 기반 추적 관리 MVP입니다. 2단계에서는 일자별 추이 테이블, "
     "서버/정책 기준 비교, 조치상태 워크플로우, 외부 수집 파이프라인 연계를 확장할 수 있도록 "
     "스캔 실행 이력과 개별 탐지 이력을 분리 저장하도록 설계했습니다."
 )

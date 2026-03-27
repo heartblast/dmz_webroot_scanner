@@ -1,8 +1,8 @@
 DMZ 구간 웹서버의 웹서빙 경로(root/alias/DocumentRoot) 를 웹서버 설정 “덤프 출력”에서 자동 수집하고, 해당 경로를 스캔하여 용도 부적합 파일(스테이징/반출 징후, 웹쉘/스크립트/아카이브 등) 을 룰 기반으로 탐지한 뒤 표준 JSON 보고서로 산출하는 경량 도구입니다.
 
-**현재 버전: v1.1.2**
+**현재 버전: v1.1.3**
 
-실행 시 `NICE DetectBot` ASCII 배너가 stderr로 출력되며, 바로 아래에 버전 정보(예: `Version: v1.1.2`)가 표시됩니다. 배너는 `internal/banner/nice_detectbot.txt`에 템플릿으로 보관되며, Go `embed`로 컴파일 시 바이너리에 포함되어 별도 파일 의존성이 없습니다.
+실행 시 `NICE DetectBot` ASCII 배너가 stderr로 출력되며, 바로 아래에 버전 정보(예: `Version: v1.1.3`)가 표시됩니다. 배너는 `internal/banner/nice_detectbot.txt`에 템플릿으로 보관되며, Go `embed`로 컴파일 시 바이너리에 포함되어 별도 파일 의존성이 없습니다.
 
 > 목적은 침해 지원이 아닌 통제/탐지/감사입니다.  
 > MIME 판별은 `net/http.DetectContentType`(최대 512B sniff) 기반이라 100% 정확하지 않습니다.
@@ -420,6 +420,30 @@ CLI로 명시한 값은 설정 파일 값보다 우선하는 방식으로 사용
 
 ---
 
+## Console Output Example
+
+실행 시 배너만 출력되는 것이 아니라 시작, 진행, 완료, 요약 로그가 함께 출력됩니다. 운영자는 배치 로그만 보더라도 실행 시작 여부, 대상 추출 여부, 정상 완료 여부를 빠르게 판단할 수 있습니다.
+
+```text
+Version: v1.1.3
+[INFO] Scan started at: 2026-03-27T09:15:00+09:00
+[INFO] Host: web-dmz-01 (10.10.10.25, linux)
+[INFO] Mode: nginx-dump + scan
+[INFO] Output file: /tmp/report.json
+[INFO] Targets discovered: 4
+[INFO] Starting filesystem scan...
+[INFO] Scanning root: /var/www/html
+[INFO] Scanning root: /srv/www/app
+[INFO] Scan completed at: 2026-03-27T09:16:42+09:00
+[INFO] Duration: 1m42s
+[INFO] Scan roots: 4
+[INFO] Findings: 12
+[SUMMARY] roots=4 files_scanned=1823 findings=12 high_risk=3 large_files=2 allowlist_violations=7
+[INFO] Report written to: /tmp/report.json
+```
+
+콘솔 로그는 실행 상태 확인용이고, 상세 탐지 증적은 JSON 리포트에서 확인하는 구조입니다. `--out -` 로 JSON을 stdout에 내보낼 때는 콘솔 로그가 stderr로 우회되어 출력 결과와 충돌하지 않습니다.
+
 ## JSON 리포트 구조
 
 최상위 구조 예시:
@@ -429,7 +453,18 @@ CLI로 명시한 값은 설정 파일 값보다 우선하는 방식으로 사용
   "report_version": "1.0",
   "generated_at": "2026-03-20T10:00:00+09:00",
   "scan_started_at": "2026-03-20T09:59:58+09:00",
-  "host": "web01",
+  "host": {
+    "hostname": "web-dmz-01",
+    "ip_addresses": [
+      "10.10.10.25"
+    ],
+    "primary_ip": "10.10.10.25",
+    "os_type": "linux",
+    "os_name": "Rocky Linux",
+    "os_version": "8.10",
+    "platform": "linux/amd64",
+    "collected_at": "2026-03-20T09:59:58+09:00"
+  },
   "inputs": [
     "nginx-dump:-"
   ],
@@ -449,6 +484,8 @@ CLI로 명시한 값은 설정 파일 값보다 우선하는 방식으로 사용
   }
 }
 ```
+
+`host.hostname`, `host.primary_ip`, `host.os_type` 는 운영자가 리포트만 보더라도 어느 서버 결과인지 즉시 식별하기 위한 핵심 필드입니다. Streamlit 리포트 파서와 DetectBot Portal 목록/상세 화면에서도 같은 정보를 함께 표시합니다.
 
 ### finding 예시
 

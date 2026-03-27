@@ -4,6 +4,7 @@ Repository layer for DetectBot Portal.
 
 import json
 import uuid
+from pathlib import Path
 
 from lib.codebook import get_pattern_meaning, get_reason_meaning
 from lib.db import get_connection, utcnow
@@ -170,6 +171,9 @@ def list_servers(keyword="", environment="", zone="", active_only=False):
             environment,
             zone,
             os_type,
+            os_name,
+            os_version,
+            platform,
             web_server_type,
             service_name,
             criticality,
@@ -201,6 +205,9 @@ def save_server(payload):
         payload.get("environment", "unknown"),
         payload.get("zone", "unknown"),
         payload.get("os_type", "unknown"),
+        payload.get("os_name", "").strip(),
+        payload.get("os_version", "").strip(),
+        payload.get("platform", "").strip(),
         payload.get("web_server_type", "unknown"),
         payload.get("service_name", "").strip(),
         payload.get("criticality", "medium"),
@@ -219,10 +226,10 @@ def save_server(payload):
             """
             INSERT INTO servers (
                 id, server_name, hostname, ip_address, environment, zone, os_type,
-                web_server_type, service_name, criticality, owner_name, upload_enabled,
-                is_active, notes, created_at, updated_at
+                os_name, os_version, platform, web_server_type, service_name, criticality,
+                owner_name, upload_enabled, is_active, notes, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             params,
         )
@@ -242,6 +249,20 @@ def find_server_by_hostname(hostname):
         LIMIT 1
         """,
         [hostname],
+    )
+
+
+def find_server_by_ip_address(ip_address):
+    if not ip_address:
+        return None
+    return fetch_one(
+        """
+        SELECT *
+        FROM servers
+        WHERE ip_address = ?
+        LIMIT 1
+        """,
+        [ip_address],
     )
 
 
@@ -387,8 +408,14 @@ def list_scan_runs(server_id="", limit=200):
         f"""
         SELECT
             sr.id,
+            sr.server_id,
+            sr.policy_id,
             s.server_name,
             s.hostname,
+            s.ip_address,
+            s.os_type,
+            s.os_name,
+            s.platform,
             sr.input_type,
             sr.scanner_version,
             sr.scan_started_at,
@@ -396,6 +423,11 @@ def list_scan_runs(server_id="", limit=200):
             sr.findings_count,
             sr.roots_count,
             sr.scanned_files,
+            sr.host_hostname,
+            sr.host_primary_ip,
+            sr.host_os_type,
+            sr.host_os_name,
+            sr.host_platform,
             sr.latest_for_server,
             p.policy_name,
             rs.file_name,
@@ -419,6 +451,11 @@ def get_scan_run_detail(scan_run_id):
             sr.*,
             s.server_name,
             s.hostname,
+            s.ip_address,
+            s.os_type,
+            s.os_name,
+            s.os_version,
+            s.platform,
             s.environment,
             s.zone,
             p.policy_name,
@@ -481,6 +518,41 @@ def get_scan_run_detail(scan_run_id):
             [scan_run_id],
         ),
     }
+
+
+def load_scan_run_report(scan_run_id):
+    run = fetch_one(
+        """
+        SELECT
+            sr.id,
+            sr.server_id,
+            sr.scan_started_at,
+            sr.generated_at,
+            rs.file_name,
+            rs.stored_path
+        FROM scan_runs sr
+        LEFT JOIN report_sources rs ON rs.id = sr.report_source_id
+        WHERE sr.id = ?
+        """,
+        [scan_run_id],
+    )
+    if not run:
+        return {"run": None, "report": None, "error": "scan run not found"}
+
+    stored_path = run.get("stored_path") or ""
+    if not stored_path:
+        return {"run": run, "report": None, "error": "stored report path is missing"}
+
+    report_path = Path(stored_path)
+    if not report_path.is_file():
+        return {"run": run, "report": None, "error": f"stored report not found: {stored_path}"}
+
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"run": run, "report": None, "error": f"failed to read report: {exc}"}
+
+    return {"run": run, "report": report, "error": None}
 
 
 def search_findings(filters):

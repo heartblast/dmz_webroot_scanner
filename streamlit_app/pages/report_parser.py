@@ -3,6 +3,8 @@ import streamlit as st
 from lib.report_parser import (
     build_findings_df,
     interpret_finding,
+    normalize_host_info,
+    normalize_roots,
     render_counters,
     render_filters,
     render_root_table,
@@ -26,7 +28,8 @@ if not uploaded:
 
 report = safe_json_load(uploaded)
 findings = normalize_list(report.get("findings"))
-roots = normalize_list(report.get("roots"))
+roots = normalize_roots(report)
+host = normalize_host_info(report)
 config = report.get("config", {}) or {}
 active_rules = normalize_list(report.get("active_rules"))
 
@@ -36,8 +39,15 @@ with st.expander("리포트 기본 정보", expanded=True):
     left, right = st.columns(2)
 
     with left:
+        os_detail = " ".join(
+            [part for part in [host.get("os_name"), host.get("os_version")] if part]
+        )
         st.write(f"**report_version**: {report.get('report_version', '-')}")
-        st.write(f"**host**: {report.get('host', '-')}")
+        st.write(f"**hostname**: {host.get('hostname') or '알 수 없음'}")
+        st.write(f"**primary_ip**: {host.get('primary_ip') or '알 수 없음'}")
+        st.write(f"**os_type**: {host.get('os_type') or '알 수 없음'}")
+        st.write(f"**os_detail**: {os_detail or '알 수 없음'}")
+        st.write(f"**platform**: {host.get('platform') or '알 수 없음'}")
         st.write(f"**generated_at**: {fmt_dt(report.get('generated_at'))}")
         st.write(f"**scan_started_at**: {fmt_dt(report.get('scan_started_at'))}")
         st.write(f"**active_rules**: {', '.join(active_rules) if active_rules else '-'}")

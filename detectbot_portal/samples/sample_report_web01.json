@@ -2,7 +2,18 @@
   "report_version": "1.0",
   "generated_at": "2026-03-16T15:09:43+09:00",
   "scan_started_at": "2026-03-16T15:09:30+09:00",
-  "host": "PC-1250024I01",
+  "host": {
+    "hostname": "web-dmz-01",
+    "ip_addresses": [
+      "10.10.10.21"
+    ],
+    "primary_ip": "10.10.10.21",
+    "os_type": "linux",
+    "os_name": "Rocky Linux",
+    "os_version": "8.10",
+    "platform": "linux/amd64",
+    "collected_at": "2026-03-16T15:09:30+09:00"
+  },
   "inputs": [],
   "config": {
     "NginxDump": "",

@@ -29,9 +29,12 @@ type KafkaEvent struct {
 // makeEvents: 리포트에서 Kafka로 전송할 이벤트 목록을 생성
 func (rep *Report) makeEvents(maskSensitive bool) []KafkaEvent {
 	e := KafkaEvent{
-		Host:        rep.Host,
+		Host:        rep.Host.Hostname,
 		GeneratedAt: rep.GeneratedAt,
 		RootsCount:  rep.Stats.RootsCount,
+	}
+	if e.Host == "" || e.Host == "unknown" {
+		e.Host = rep.Host.PrimaryIP
 	}
 	for _, f := range rep.Findings {
 		item := struct {

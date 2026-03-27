@@ -11,6 +11,48 @@ from lib.utils import fmt_bytes, fmt_dt, normalize_list, severity_rank
 from utils.meaning_loader import get_pattern_meaning, get_reason_meaning
 
 
+def normalize_host_info(report):
+    raw_host = report.get("host")
+    host = {
+        "hostname": "",
+        "ip_addresses": [],
+        "primary_ip": "",
+        "os_type": "알 수 없음",
+        "os_name": "",
+        "os_version": "",
+        "platform": "",
+        "collected_at": "",
+    }
+
+    if isinstance(raw_host, dict):
+        host["hostname"] = str(raw_host.get("hostname") or "").strip()
+        host["ip_addresses"] = [
+            str(value).strip() for value in normalize_list(raw_host.get("ip_addresses")) if str(value).strip()
+        ]
+        host["primary_ip"] = str(raw_host.get("primary_ip") or "").strip()
+        host["os_type"] = str(raw_host.get("os_type") or "알 수 없음").strip() or "알 수 없음"
+        host["os_name"] = str(raw_host.get("os_name") or "").strip()
+        host["os_version"] = str(raw_host.get("os_version") or "").strip()
+        host["platform"] = str(raw_host.get("platform") or "").strip()
+        host["collected_at"] = str(raw_host.get("collected_at") or "").strip()
+    elif isinstance(raw_host, str):
+        host["hostname"] = raw_host.strip()
+
+    if not host["primary_ip"] and host["ip_addresses"]:
+        host["primary_ip"] = host["ip_addresses"][0]
+
+    return host
+
+
+def normalize_roots(report):
+    return normalize_list(report.get("roots") or report.get("scan_roots"))
+
+
+def host_summary_text(host):
+    parts = [part for part in [host.get("hostname"), host.get("primary_ip"), host.get("os_type")] if part]
+    return " / ".join(parts) if parts else "알 수 없음"
+
+
 def build_findings_df(findings):
     """Build pandas DataFrame from findings."""
     rows = []
@@ -66,11 +108,12 @@ def render_summary(report):
     import streamlit as st
 
     stats = report.get("stats", {}) or {}
-    roots = normalize_list(report.get("roots"))
+    roots = normalize_roots(report)
     findings = normalize_list(report.get("findings"))
+    host = normalize_host_info(report)
 
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Host", report.get("host", "-"))
+    col1.metric("Host", host_summary_text(host))
     col2.metric("Roots", stats.get("roots_count", len(roots)))
     col3.metric("Scanned Files", stats.get("scanned_files", "-"))
     col4.metric("Findings", stats.get("findings_count", len(findings)))

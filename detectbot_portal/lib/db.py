@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS servers (
     environment TEXT,
     zone TEXT,
     os_type TEXT,
+    os_name TEXT,
+    os_version TEXT,
+    platform TEXT,
     web_server_type TEXT,
     service_name TEXT,
     criticality TEXT,
@@ -134,6 +137,11 @@ CREATE TABLE IF NOT EXISTS scan_runs (
     findings_count INTEGER,
     roots_count INTEGER,
     scanned_files INTEGER,
+    host_hostname TEXT,
+    host_primary_ip TEXT,
+    host_os_type TEXT,
+    host_os_name TEXT,
+    host_platform TEXT,
     severity_summary_json TEXT,
     latest_for_server BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP
@@ -208,6 +216,18 @@ def init_db():
     conn = get_connection()
     try:
         conn.execute(SCHEMA_SQL)
+        migrations = [
+            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS os_name TEXT",
+            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS os_version TEXT",
+            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS platform TEXT",
+            "ALTER TABLE scan_runs ADD COLUMN IF NOT EXISTS host_hostname TEXT",
+            "ALTER TABLE scan_runs ADD COLUMN IF NOT EXISTS host_primary_ip TEXT",
+            "ALTER TABLE scan_runs ADD COLUMN IF NOT EXISTS host_os_type TEXT",
+            "ALTER TABLE scan_runs ADD COLUMN IF NOT EXISTS host_os_name TEXT",
+            "ALTER TABLE scan_runs ADD COLUMN IF NOT EXISTS host_platform TEXT",
+        ]
+        for statement in migrations:
+            conn.execute(statement)
         now = utcnow()
         for code_type, code, meaning, source in iter_code_dictionary_rows():
             conn.execute(

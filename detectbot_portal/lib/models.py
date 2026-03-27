@@ -4,7 +4,7 @@ Shared constants and defaults for DetectBot Portal.
 
 ENVIRONMENTS = ["prod", "dev", "test", "uat", "dr", "unknown"]
 ZONES = ["dmz", "internal", "cloud", "partner", "unknown"]
-OS_TYPES = ["linux", "windows", "unix", "container", "unknown"]
+OS_TYPES = ["linux", "windows", "darwin", "unix", "container", "unknown"]
 WEB_SERVER_TYPES = ["nginx", "apache", "iis", "tomcat", "unknown"]
 CRITICALITIES = ["critical", "high", "medium", "low"]
 POLICY_MODES = ["safe", "balanced", "deep", "custom"]

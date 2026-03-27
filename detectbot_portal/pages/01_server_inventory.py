@@ -3,11 +3,11 @@ import streamlit as st
 
 from lib.db import init_db
 from lib.models import CRITICALITIES, ENVIRONMENTS, OS_TYPES, WEB_SERVER_TYPES, ZONES
-from lib.repository import get_server, list_servers, save_server
+from lib.repository import get_server, list_scan_runs, list_servers, save_server
 from lib.seed import bootstrap_demo_data
 from lib.ui import (
+    build_scan_run_display_df,
     build_server_inventory_display_df,
-    dataframe_or_info,
     format_timestamp_columns,
     inject_portal_css,
     render_metric_summary,
@@ -16,8 +16,7 @@ from lib.ui import (
     render_selected_server_focus_card,
     render_server_identity,
     render_server_overview,
-    render_server_selection_cards,
-    style_server_inventory_table,
+    style_scan_run_table,
 )
 
 
@@ -47,7 +46,6 @@ def reset_inventory_filters():
         "inventory_active_status": ALL_OPTION,
         "inventory_upload_status": ALL_OPTION,
         "inventory_selected_server_id": None,
-        "inventory_server_picker_id": "",
     }
     for key, value in defaults.items():
         st.session_state[key] = value
@@ -58,20 +56,9 @@ def ensure_selected_server_id(current_ids):
     if selected_server_id in current_ids:
         return selected_server_id
 
-    picker_server_id = st.session_state.get("inventory_server_picker_id")
-    if picker_server_id in current_ids:
-        st.session_state["inventory_selected_server_id"] = picker_server_id
-        return picker_server_id
-
     selected_server_id = current_ids[0] if current_ids else None
     st.session_state["inventory_selected_server_id"] = selected_server_id
     return selected_server_id
-
-
-def sync_selected_server_from_picker():
-    picker_server_id = st.session_state.get("inventory_server_picker_id")
-    if picker_server_id:
-        st.session_state["inventory_selected_server_id"] = picker_server_id
 
 
 def filter_servers(df):
@@ -164,7 +151,7 @@ def render_server_form(editing_server=None, form_key="server_form"):
             value=(editing_server or {}).get("service_name", ""),
         )
         owner_name = st.text_input(
-            "담당자 / 관리부서",
+            "담당자 / 관리자",
             value=(editing_server or {}).get("owner_name", ""),
         )
 
@@ -198,6 +185,20 @@ def render_server_form(editing_server=None, form_key="server_form"):
                 ),
             )
 
+        os_detail_col1, os_detail_col2 = st.columns(2)
+        with os_detail_col1:
+            os_name = st.text_input(
+                "OS 상세명",
+                value=(editing_server or {}).get("os_name", ""),
+                placeholder="예: Rocky Linux",
+            )
+        with os_detail_col2:
+            platform = st.text_input(
+                "Platform",
+                value=(editing_server or {}).get("platform", ""),
+                placeholder="예: linux/amd64",
+            )
+
         criticality = st.selectbox(
             "중요도",
             CRITICALITIES,
@@ -228,7 +229,7 @@ def render_server_form(editing_server=None, form_key="server_form"):
             return
 
         if not server_name.strip():
-            st.error("서버명은 필수입니다. 운영자가 식별 가능한 이름을 입력해 주세요.")
+            st.error("서버명은 필수입니다. 운영자가 쉽게 식별할 수 있는 이름을 입력해 주세요.")
             return
 
         server_id = save_server(
@@ -240,6 +241,8 @@ def render_server_form(editing_server=None, form_key="server_form"):
                 "environment": selected_environment,
                 "zone": selected_zone,
                 "os_type": os_type,
+                "os_name": os_name,
+                "platform": platform,
                 "web_server_type": web_server_type,
                 "service_name": service_name,
                 "criticality": criticality,
@@ -259,9 +262,22 @@ def render_server_form(editing_server=None, form_key="server_form"):
         st.rerun()
 
 
+def open_server_scan_results(server_id):
+    st.session_state["scan_results_focus_server_id"] = server_id
+    st.session_state["scan_results_focus_origin"] = "server_inventory"
+    st.switch_page("pages/02_scan_results.py")
+
+
+def open_detection_report_viewer(server_id, scan_run_id=""):
+    st.session_state["report_viewer_focus_server_id"] = server_id
+    if scan_run_id:
+        st.session_state["report_viewer_focus_run_id"] = scan_run_id
+    st.switch_page("pages/05_detection_report_viewer.py")
+
+
 render_portal_header(
     "서버 인벤토리",
-    "운영 우선순위가 높은 자산을 먼저 보고, 선택한 서버를 상세와 수정 탭에서 같은 기준으로 이어서 관리합니다.",
+    "운영 우선순위가 높은 자산을 먼저 보고, 서버 인벤토리 목록에서 직접 선택한 서버를 상세 및 수정 흐름으로 이어서 관리합니다.",
 )
 
 for key, value in {
@@ -272,7 +288,6 @@ for key, value in {
     "inventory_active_status": ALL_OPTION,
     "inventory_upload_status": ALL_OPTION,
     "inventory_selected_server_id": None,
-    "inventory_server_picker_id": "",
 }.items():
     st.session_state.setdefault(key, value)
 
@@ -338,47 +353,26 @@ render_metric_summary(
             "value": int(servers_df["upload_enabled"].fillna(False).sum()) if not servers_df.empty else 0,
         },
         {
-            "label": "고중요 자산",
+            "label": "고위험 자산",
             "value": int(servers_df["criticality"].isin(["critical", "high"]).sum()) if not servers_df.empty else 0,
         },
     ]
 )
 
 selected_server = None
-selected_server_id = None
+recent_runs_df = pd.DataFrame()
 
 if servers_df.empty:
     st.info("조건에 맞는 서버가 없습니다. 필터를 줄이거나 신규 등록 탭에서 서버를 추가해 주세요.")
 else:
     current_ids = servers_df["id"].tolist()
     selected_server_id = ensure_selected_server_id(current_ids)
-    st.session_state["inventory_server_picker_id"] = selected_server_id or ""
-
-    next_selected_server_id = render_server_selection_cards(
-        servers_df,
-        selected_server_id,
-    )
-    if next_selected_server_id != selected_server_id:
-        st.session_state["inventory_selected_server_id"] = next_selected_server_id
-        st.rerun()
-
-    with st.expander("카드에 없는 서버 빠르게 찾기", expanded=False):
-        st.selectbox(
-            "현재 필터 결과에서 선택",
-            options=[""] + current_ids,
-            key="inventory_server_picker_id",
-            format_func=lambda value: (
-                "선택 없음"
-                if not value
-                else f"{servers_df.loc[servers_df['id'] == value, 'server_name'].iloc[0]} / "
-                f"{servers_df.loc[servers_df['id'] == value, 'hostname'].iloc[0] or '-'}"
-            ),
-            on_change=sync_selected_server_from_picker,
-        )
-
-    selected_server_id = st.session_state.get("inventory_selected_server_id")
     if selected_server_id:
         selected_server = get_server(selected_server_id)
+        recent_runs_df = format_timestamp_columns(
+            list_scan_runs(server_id=selected_server_id, limit=5),
+            ["scan_started_at", "generated_at"],
+        )
 
 render_selected_server_banner(selected_server, context_label="현재 선택 서버")
 
@@ -387,18 +381,85 @@ tab_list, tab_detail, tab_create, tab_edit = tabs
 
 with tab_list:
     st.markdown("### 서버 목록")
-    st.caption("운영자가 자산 상태를 한눈에 읽을 수 있도록 상태와 중요도를 강조해 보여줍니다.")
-    styled_df = style_server_inventory_table(build_server_inventory_display_df(servers_df))
-    dataframe_or_info(styled_df, "표시할 서버가 없습니다.")
+    st.caption("서버 인벤토리 목록에서 직접 선택하면 상세/수정 탭의 현재 서버가 함께 갱신됩니다.")
+    display_df = build_server_inventory_display_df(servers_df)
+    if display_df is None or display_df.empty:
+        st.info("표시할 서버가 없습니다.")
+    else:
+        selection = st.dataframe(
+            display_df,
+            width="stretch",
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
+        )
+        selected_rows = []
+        try:
+            selected_rows = selection.selection.rows
+        except Exception:
+            try:
+                selected_rows = selection.get("selection", {}).get("rows", [])
+            except Exception:
+                selected_rows = []
+
+        if selected_rows:
+            next_selected_server_id = servers_df.iloc[selected_rows[0]]["id"]
+            if next_selected_server_id != st.session_state.get("inventory_selected_server_id"):
+                st.session_state["inventory_selected_server_id"] = next_selected_server_id
+                st.rerun()
 
 with tab_detail:
     st.markdown("### 서버 상세")
     if not selected_server:
-        st.info("상세 조회할 서버가 없습니다. 먼저 카드에서 서버를 선택해 주세요.")
+        st.info("상세 조회할 서버가 없습니다. 목록 탭에서 서버를 선택해 주세요.")
     else:
         render_selected_server_focus_card(selected_server, mode="detail")
         render_server_identity(selected_server)
         render_server_overview(selected_server)
+
+        st.markdown("#### 이 서버의 최근 스캔 이력")
+        if recent_runs_df is None or recent_runs_df.empty:
+            st.info("이 서버에 연결된 스캔 이력이 아직 없습니다.")
+        else:
+            latest_run = recent_runs_df.iloc[0]
+            summary_cols = st.columns(4)
+            summary_cols[0].metric(
+                "최근 스캔 시각",
+                latest_run.get("generated_at") or latest_run.get("scan_started_at") or "-",
+            )
+            summary_cols[1].metric(
+                "최근 findings",
+                int(latest_run.get("findings_count") or 0),
+            )
+            summary_cols[2].metric(
+                "최근 실행 상태",
+                "최신" if bool(latest_run.get("latest_for_server")) else "이력",
+            )
+            summary_cols[3].metric(
+                "최근 입력 유형",
+                latest_run.get("input_type") or "-",
+            )
+
+            action_col1, action_col2 = st.columns((0.35, 0.65))
+            with action_col1:
+                if st.button("이 서버의 스캔 이력 보기", key="open_server_scan_results", width="stretch"):
+                    open_server_scan_results(selected_server["id"])
+            with action_col2:
+                st.caption("스캔 결과 관리 페이지로 이동하면서 이 서버 기준 필터를 자동 적용합니다.")
+
+            viewer_col1, viewer_col2 = st.columns((0.35, 0.65))
+            with viewer_col1:
+                if st.button("이 서버의 탐지결과조회", key="open_detection_report_viewer", width="stretch"):
+                    open_detection_report_viewer(selected_server["id"], latest_run.get("id") or "")
+            with viewer_col2:
+                st.caption("탐지결과조회 페이지에서 최신 실행 리포트를 바로 해석합니다.")
+
+            st.dataframe(
+                style_scan_run_table(build_scan_run_display_df(recent_runs_df)),
+                width="stretch",
+                hide_index=True,
+            )
+
         with st.expander("원본 상세 정보 보기", expanded=False):
             st.json(selected_server, expanded=False)
 
@@ -410,7 +471,7 @@ with tab_create:
 with tab_edit:
     st.markdown("### 기존 서버 수정")
     if not selected_server:
-        st.info("수정할 서버가 없습니다. 카드에서 서버를 먼저 선택해 주세요.")
+        st.info("수정할 서버가 없습니다. 목록 탭에서 서버를 먼저 선택해 주세요.")
     else:
         render_selected_server_focus_card(selected_server, mode="edit")
         render_server_identity(selected_server)

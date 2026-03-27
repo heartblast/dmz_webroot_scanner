@@ -66,12 +66,37 @@ def _reset_history_filters():
         "scan_results_server_filter": "",
         "scan_results_policy_filter": "",
         "scan_results_input_type_filter": "",
+        "scan_results_host_keyword": "",
         "scan_results_latest_only": False,
         "scan_results_findings_only": False,
         "scan_results_recent_days": 30,
     }
     for key, value in defaults.items():
         st.session_state[key] = value
+
+
+def _apply_inventory_focus_filter():
+    focus_server_id = st.session_state.pop("scan_results_focus_server_id", "")
+    focus_origin = st.session_state.pop("scan_results_focus_origin", "")
+    if not focus_server_id:
+        return None
+
+    st.session_state["scan_results_server_filter"] = focus_server_id
+    st.session_state["scan_results_latest_only"] = False
+    st.session_state["scan_results_findings_only"] = False
+    st.session_state["scan_results_host_keyword"] = ""
+    return {
+        "server_id": focus_server_id,
+        "origin": focus_origin or "server_inventory",
+    }
+
+
+def _open_detection_report_viewer(server_id="", scan_run_id=""):
+    if server_id:
+        st.session_state["report_viewer_focus_server_id"] = server_id
+    if scan_run_id:
+        st.session_state["report_viewer_focus_run_id"] = scan_run_id
+    st.switch_page("pages/05_detection_report_viewer.py")
 
 
 def _filter_runs(runs_df):
@@ -83,6 +108,7 @@ def _filter_runs(runs_df):
     server_filter = st.session_state.get("scan_results_server_filter", "")
     policy_filter = st.session_state.get("scan_results_policy_filter", "")
     input_type_filter = st.session_state.get("scan_results_input_type_filter", "")
+    host_keyword = st.session_state.get("scan_results_host_keyword", "").strip().lower()
     latest_only = st.session_state.get("scan_results_latest_only", False)
     findings_only = st.session_state.get("scan_results_findings_only", False)
     recent_days = int(st.session_state.get("scan_results_recent_days", 30) or 0)
@@ -93,6 +119,16 @@ def _filter_runs(runs_df):
         filtered = filtered[filtered["policy_id"].fillna("") == policy_filter]
     if input_type_filter:
         filtered = filtered[filtered["input_type"].fillna("") == input_type_filter]
+    if host_keyword:
+        filtered = filtered[
+            filtered.apply(
+                lambda row: host_keyword in str(row.get("server_name", "")).lower()
+                or host_keyword in str(row.get("host_hostname", "") or row.get("hostname", "")).lower()
+                or host_keyword in str(row.get("host_primary_ip", "") or row.get("ip_address", "")).lower()
+                or host_keyword in str(row.get("host_os_type", "") or row.get("os_type", "")).lower(),
+                axis=1,
+            )
+        ]
     if latest_only:
         filtered = filtered[filtered["latest_for_server"] == True]
     if findings_only:
@@ -175,6 +211,8 @@ render_portal_header(
     "JSON 리포트 적재, 점검 실행 이력 조회, 실행별 상세 분석을 한 화면에서 관리합니다.",
 )
 
+focus_context = _apply_inventory_focus_filter()
+
 servers_df = list_servers(active_only=False)
 policies_df = list_policies(active_only=False)
 all_runs_df = list_scan_runs(limit=400)
@@ -195,6 +233,9 @@ render_info_panel(
     "점검 결과 관리 허브",
     "리포트를 업로드하면 실행 이력에 누적 저장되고, 아래 실행 이력 탭에서 최신 실행과 탐지 건수가 많은 실행을 바로 확인할 수 있습니다.",
 )
+
+if focus_context:
+    st.info("서버 인벤토리에서 선택한 서버 기준으로 스캔 결과 필터가 적용되었습니다. 필요하면 여기서 다른 서버로 바꾸거나 필터를 해제할 수 있습니다.")
 
 flash_result = st.session_state.pop("scan_results_last_ingest", None)
 if flash_result:
@@ -346,6 +387,12 @@ with tab_history:
             key="scan_results_recent_days",
         )
 
+    st.text_input(
+        "호스트 검색",
+        key="scan_results_host_keyword",
+        placeholder="hostname, primary IP, os_type, 서버명",
+    )
+
     toggle_col1, toggle_col2, toggle_col3 = st.columns((1, 1, 1.2))
     with toggle_col1:
         st.checkbox("최신 실행만 보기", key="scan_results_latest_only")
@@ -383,6 +430,8 @@ with tab_history:
                 index=filtered_runs_df["id"].tolist().index(st.session_state["scan_results_selected_run_id"]),
                 format_func=lambda value: (
                     f"{filtered_runs_df.loc[filtered_runs_df['id'] == value, 'server_name'].iloc[0]} / "
+                    f"{filtered_runs_df.loc[filtered_runs_df['id'] == value, 'host_hostname'].iloc[0] or filtered_runs_df.loc[filtered_runs_df['id'] == value, 'hostname'].iloc[0] or '-'} / "
+                    f"{filtered_runs_df.loc[filtered_runs_df['id'] == value, 'host_primary_ip'].iloc[0] or filtered_runs_df.loc[filtered_runs_df['id'] == value, 'ip_address'].iloc[0] or '-'} / "
                     f"{filtered_runs_df.loc[filtered_runs_df['id'] == value, 'generated_at'].iloc[0] or filtered_runs_df.loc[filtered_runs_df['id'] == value, 'scan_started_at'].iloc[0]}"
                 ),
                 key="scan_results_run_picker",
@@ -408,6 +457,8 @@ with tab_history:
 
             st.markdown("### 실행 상세")
             render_scan_run_overview(run)
+            if st.button("상세 리포트 해석 보기", key="open_detection_report_viewer_from_scan_results", width="stretch"):
+                _open_detection_report_viewer(run.get("server_id") or "", run.get("id") or "")
 
             severity_df = detail["severity_counts"]
             if severity_df is not None and not severity_df.empty:
