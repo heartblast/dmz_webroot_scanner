@@ -1,5 +1,7 @@
 # Detect Bot
 
+![Detect Bot Logo](assets/detectbot-logo.png)
+
 `Detect Bot`은 DMZ 구간 웹서버에서 웹서빙 경로를 수집하고, 해당 경로 아래 파일을 스캔해 웹 노출에 부적절한 파일이나 민감정보 흔적을 JSON 리포트로 남기는 Go 기반 점검 도구입니다.
 
 현재 저장소 모듈 경로는 `github.com/heartblast/detect_bot`입니다.
