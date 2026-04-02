@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-//go:embed nice_detectbot.txt
+//go:embed detectbot.txt
 var bannerText string
 
 // Get returns the configured ASCII banner.

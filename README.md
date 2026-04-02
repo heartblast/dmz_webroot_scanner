@@ -124,6 +124,33 @@ go build -o detectbot ./cmd/detectbot
 go build -o detectbot.exe .\cmd\detectbot
 ```
 
+## DetectBot Portal
+
+`detectbot_portal` now supports both SQLite and PostgreSQL through a shared SQLAlchemy model and service/repository structure.
+
+SQLite example:
+
+```bash
+set DETECTBOT_DATABASE_BACKEND=sqlite
+streamlit run detectbot_portal/app.py
+```
+
+PostgreSQL example:
+
+```bash
+set DETECTBOT_DATABASE_BACKEND=postgresql
+set DETECTBOT_POSTGRES_HOST=localhost
+set DETECTBOT_POSTGRES_PORT=5432
+set DETECTBOT_POSTGRES_DB=detectbot_portal
+set DETECTBOT_POSTGRES_USER=detectbot
+set DETECTBOT_POSTGRES_PASSWORD=detectbot
+streamlit run detectbot_portal/app.py
+```
+
+More portal-specific setup is documented in [detectbot_portal/README.md](/d:/golang/go-workspace/dmz_webroot_scanner/detectbot_portal/README.md).
+
+For the portal settings UI, PostgreSQL passwords can be stored encrypted in `detectbot_portal/config/settings.yaml` using the `DETECTBOT_SETTINGS_ENCRYPTION_KEY` environment variable.
+
 ### 배포용 빌드 스크립트
 
 리포지토리에는 아래 스크립트가 포함되어 있습니다.

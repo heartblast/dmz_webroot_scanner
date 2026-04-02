@@ -44,8 +44,8 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Version: %s\n\n", ver)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "NICE INFORMATION SERVICE\n")
-		fmt.Fprintf(os.Stderr, "Detect Bot\n")
+		//fmt.Fprintf(os.Stderr, "NICE INFORMATION SERVICE\n")
+		fmt.Fprintf(os.Stderr, "DetectBot scans web-serving paths on DMZ servers to detect suspicious or inappropriate files.\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\n", os.Args[0])
 		printFlagGroup("INPUT OPTIONS", []string{"server-type", "nginx-dump", "apache-dump", "watch-dir", "config"})
 		printFlagGroup("SCAN/DEPTH OPTIONS", []string{"scan", "exclude", "max-depth", "newer-than-h", "workers", "hash", "max-size-mb", "follow-symlink"})

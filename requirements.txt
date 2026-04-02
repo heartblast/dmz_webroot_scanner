@@ -1,2 +1,6 @@
 streamlit
 pyyaml
+pandas
+sqlalchemy
+psycopg[binary]
+cryptography

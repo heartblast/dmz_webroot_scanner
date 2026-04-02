@@ -1,0 +1,17 @@
+database:
+  backend: sqlite
+  sqlite:
+    path: detectbot_portal/data/detectbot_portal.sqlite3
+    busy_timeout_ms: 5000
+  postgresql:
+    host: localhost
+    port: 5432
+    database: detectbot_portal
+    user: detectbot
+    pool_pre_ping: true
+    pool_size: 5
+    max_overflow: 10
+    password_enc: gAAAAABpzgHHsjnadpJEz-80QxUGEIKlLDMCn4DLNhQDsFNhtvoedPfFYwRl3BmV-jez2rjyWCZrN1atO26lOdS2NIsVteDpCw==
+app:
+  reports_dir: detectbot_portal/data/reports
+  auto_seed_demo_data: true
