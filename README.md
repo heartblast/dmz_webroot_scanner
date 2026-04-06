@@ -2,50 +2,50 @@
 
 ![Detect Bot Logo](assets/detectbot-logo.png)
 
-`Detect Bot`은 DMZ 구간 웹서버에서 웹서빙 경로를 수집하고, 해당 경로 아래 파일을 스캔해 웹 노출에 부적절한 파일이나 민감정보 흔적을 JSON 리포트로 남기는 Go 기반 점검 도구입니다.
+`Detect Bot`은 DMZ 구간 웹 서버에서 웹 서비스 경로를 수집하고, 해당 경로 아래 파일을 스캔해 노출 위험이 있는 파일이나 민감 정보 흔적을 JSON 리포트로 남기는 Go 기반 점검 도구입니다.
 
 현재 저장소 모듈 경로는 `github.com/heartblast/detect_bot`입니다.
 
-## 무엇을 하는가
+## 무엇을 하나요
 
 - `nginx -T` 출력에서 `root`, `alias` 경로를 추출합니다.
 - `apachectl -S` 출력에서 `DocumentRoot` 경로를 추출합니다.
-- `--watch-dir`로 수동 스캔 경로를 추가할 수 있습니다.
-- 수집한 루트 경로를 순회하며 파일 메타데이터와 일부 콘텐츠를 검사합니다.
+- `--watch-dir`로 수동 감시 경로를 추가할 수 있습니다.
+- 수집한 루트 경로를 순회하며 파일 메타데이터와 일부 내용까지 검사합니다.
 - 결과를 JSON 리포트로 저장하거나 stdout으로 출력할 수 있습니다.
-- 선택적으로 Kafka에 요약 이벤트를 전송할 수 있습니다.
+- 선택적으로 Kafka로 요약 이벤트를 전송할 수 있습니다.
 
 ## 현재 구현 기준 주요 기능
 
-### 1. 웹 루트 수집
+### 1. 스캔 루트 수집
 
 - Nginx: `root`, `alias`
 - Apache: `DocumentRoot`
 - Manual: `--watch-dir`
 
-수집된 루트는 정규화되며, 가능한 경우 symlink 실제 경로도 함께 기록됩니다.
+수집한 루트가 정규화되며, 가능한 경우 symlink 실제 경로도 함께 기록합니다.
 
 ### 2. 파일 시스템 스캔
 
-현재 스캔 시 다음 제어가 지원됩니다.
+현재 스캔 시 아래 제어값을 지원합니다.
 
 - `--max-depth`: 재귀 깊이 제한
 - `--exclude`: 제외 경로 prefix
-- `--newer-than-h`: 최근 N시간 내 수정 파일만 평가
+- `--newer-than-h`: 최근 N시간 내 수정 파일만 대상
 - `--workers`: 병렬 스캔 워커 수
 - `--follow-symlink`: symlink/reparse point 추적 여부
-- `--max-size-mb`: MIME sniff/향후 해시 대상 파일의 최대 크기 제한
+- `--max-size-mb`: MIME sniff 및 해시 계산 시 읽을 최대 파일 크기
 
 ### 3. 기본 룰
 
-현재 코드에서 기본 활성화되는 룰은 아래 4개입니다.
+현재 코드에서 기본 활성화되는 룰은 아래 4가지입니다.
 
 - `allowlist`
 - `high_risk_ext`
 - `large_file`
 - `ext_mime_mismatch`
 
-각 룰이 만들어내는 대표 reason 코드는 다음과 같습니다.
+각 룰이 만들어내는 대표 reason 코드는 아래와 같습니다.
 
 - `mime_not_in_allowlist`
 - `ext_not_in_allowlist`
@@ -56,12 +56,12 @@
 
 ### 4. 콘텐츠 기반 민감정보 탐지
 
-`--content-scan`을 켜면 텍스트 계열 파일 샘플을 읽어 아래 범주의 패턴을 탐지합니다.
+`--content-scan`을 켜면 텍스트 계열 파일 일부를 읽어 아래 범주의 패턴을 탐지합니다.
 
 - DB/서비스 연결 문자열
-- 비밀번호/토큰/API 키 등 자격증명
+- 비밀번호, 토큰, API 키 같은 자격 증명
 - private key 블록
-- 내부망 IP / 내부 도메인
+- 이메일, IP, 내부 주소 흔적
 - 위험 조합 패턴
 
 대표 매칭 코드 예시:
@@ -103,8 +103,8 @@
 
 - MIME 판별은 `net/http.DetectContentType` 기반의 샘플 sniff 방식입니다.
 - 콘텐츠/PII 스캔은 파일 전체가 아니라 제한된 샘플만 읽습니다.
-- `--hash` 플래그와 `sha256` 필드는 존재하지만, 현재 구현에서는 `sha256` 값이 실제로 채워지지 않습니다.
-- Kafka의 SASL은 플래그와 설정은 있으나 현재는 stub 상태이며 실제 인증 로직은 구현되어 있지 않습니다.
+- `--hash` 플래그와 `sha256` 필드는 존재하지만 현재 구현에서는 `sha256` 값이 실제로 채워지지 않습니다.
+- Kafka의 SASL 관련 플래그와 설정은 있으나 현재는 stub 상태이며 실제 인증 로직은 구현되어 있지 않습니다.
 - Kafka TLS는 `InsecureSkipVerify: true`로 동작합니다.
 
 ## 설치 및 빌드
@@ -126,16 +126,16 @@ go build -o detectbot.exe .\cmd\detectbot
 
 ## DetectBot Portal
 
-`detectbot_portal` now supports both SQLite and PostgreSQL through a shared SQLAlchemy model and service/repository structure.
+`detectbot_portal`은 공통 SQLAlchemy 모델과 service/repository 구조를 통해 SQLite와 PostgreSQL을 모두 지원합니다.
 
-SQLite example:
+SQLite 예시:
 
 ```bash
 set DETECTBOT_DATABASE_BACKEND=sqlite
 streamlit run detectbot_portal/app.py
 ```
 
-PostgreSQL example:
+PostgreSQL 예시:
 
 ```bash
 set DETECTBOT_DATABASE_BACKEND=postgresql
@@ -147,18 +147,18 @@ set DETECTBOT_POSTGRES_PASSWORD=detectbot
 streamlit run detectbot_portal/app.py
 ```
 
-More portal-specific setup is documented in [detectbot_portal/README.md](/d:/golang/go-workspace/dmz_webroot_scanner/detectbot_portal/README.md).
+포털 상세 설정은 [detectbot_portal/README.md](/d:/golang/go-workspace/dmz_webroot_scanner/detectbot_portal/README.md)에 정리돼 있습니다.
 
-For the portal settings UI, PostgreSQL passwords can be stored encrypted in `detectbot_portal/config/settings.yaml` using the `DETECTBOT_SETTINGS_ENCRYPTION_KEY` environment variable.
+포털 설정 UI에서는 `DETECTBOT_SETTINGS_ENCRYPTION_KEY` 환경변수를 사용해 `detectbot_portal/config/settings.yaml` 안의 PostgreSQL 비밀번호를 암호화 저장할 수 있습니다.
 
 ### 배포용 빌드 스크립트
 
-리포지토리에는 아래 스크립트가 포함되어 있습니다.
+저장소에는 아래 스크립트가 포함되어 있습니다.
 
 - `build.sh`
 - `build.ps1`
 
-`build.sh` 기준 산출물 예:
+`build.sh` 기준 산출물 예시:
 
 - `dist/detectbot_windows_amd64_v1_1_3.exe`
 - `dist/detectbot_linux_amd64_v1_1_3`
@@ -231,8 +231,8 @@ apachectl -S 2>&1 | ./detectbot \
 ### 입력 옵션
 
 - `--server-type nginx|apache|manual`
-- `--nginx-dump <path|- >`
-- `--apache-dump <path|- >`
+- `--nginx-dump <path|->`
+- `--apache-dump <path|->`
 - `--watch-dir <path>` 반복 가능
 - `--config <yaml|json>`
 
@@ -293,7 +293,7 @@ apachectl -S 2>&1 | ./detectbot \
 
 `--config`로 YAML 또는 JSON 설정 파일을 읽을 수 있습니다.
 
-지원 포맷:
+지원 확장자:
 
 - `.yaml`
 - `.yml`
@@ -301,7 +301,7 @@ apachectl -S 2>&1 | ./detectbot \
 
 CLI에서 명시한 값이 설정 파일보다 우선합니다.
 
-호환 alias도 일부 지원합니다.
+호환 alias도 지원합니다.
 
 - `watch_dir` -> `watch_dirs`
 - `content_ext` -> `content_exts`
@@ -493,9 +493,9 @@ Version: v1.1.3
 이 저장소에는 보조 UI도 포함되어 있습니다.
 
 - `streamlit_app/`: 옵션 생성과 리포트 해석용 Streamlit UI
-- `detectbot_portal/`: 리포트 적재/조회 중심 포털 UI
+- `detectbot_portal/`: 리포트 업로드/조회 중심 포털 UI
 
-CLI 스캐너의 핵심 실행 파일은 `cmd/detectbot`입니다.
+CLI 엔트리포인트 실행 파일은 `cmd/detectbot`입니다.
 
 ## 검증 명령
 
