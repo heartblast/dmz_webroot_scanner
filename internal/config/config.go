@@ -14,7 +14,7 @@ import (
 // MultiFlag accepts repeatable string flags.
 type MultiFlag []string
 
-func (m *MultiFlag) String() string { return strings.Join(*m, ",") }
+func (m *MultiFlag) String() s      tring { return strings.Join(*m, ",") }
 
 func (m *MultiFlag) Set(s string) error {
 	if s == "" {

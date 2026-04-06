@@ -3,6 +3,7 @@ import yaml
 
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
+from lib.navigation import render_portal_sidebar
 from lib.ui import render_portal_header
 from services.option_generator_service import (
     RULE_OPTIONS,
@@ -24,8 +25,10 @@ from services.option_generator_service import (
 
 st.set_page_config(page_title="DetectBot Portal - Option Generator", page_icon="OG", layout="wide")
 
-bootstrap_portal(seed_demo_data=load_settings().auto_seed_demo_data)
+settings = load_settings()
+bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
 ensure_default_state(st.session_state)
+render_portal_sidebar(settings)
 
 render_portal_header("옵션 생성기", "DetectBot Portal 환경에 맞춰 스캔 실행 옵션을 빠르게 조합하고 CLI/YAML/JSON으로 확인합니다.")
 

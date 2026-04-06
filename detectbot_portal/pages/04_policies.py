@@ -1,5 +1,7 @@
 import streamlit as st
 
+from config.settings import load_settings
+from lib.navigation import render_portal_sidebar
 from lib.db import init_db
 from lib.models import POLICY_MODES
 from lib.repository import get_policy, list_policies, save_policy
@@ -14,6 +16,8 @@ st.set_page_config(
 )
 init_db()
 bootstrap_demo_data()
+settings = load_settings()
+render_portal_sidebar(settings)
 
 render_portal_header(
     "정책 / 옵션 관리",

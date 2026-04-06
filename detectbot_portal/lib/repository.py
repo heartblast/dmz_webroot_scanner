@@ -561,6 +561,9 @@ def search_findings(filters):
     if filters.get("server_id"):
         where.append("f.server_id = ?")
         params.append(filters["server_id"])
+    if filters.get("scan_run_id"):
+        where.append("f.scan_run_id = ?")
+        params.append(filters["scan_run_id"])
     if filters.get("severity"):
         where.append("f.severity = ?")
         params.append(filters["severity"])

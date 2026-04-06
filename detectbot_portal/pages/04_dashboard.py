@@ -2,13 +2,16 @@ import streamlit as st
 
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
+from lib.navigation import render_portal_sidebar
 from lib.ui import dataframe_or_info, format_timestamp_columns, render_metric_cards, render_portal_header
 from services.dashboard_service import DashboardService
 
 
 st.set_page_config(page_title="DetectBot Portal - Dashboard", page_icon="DS", layout="wide")
 
-bootstrap_portal(seed_demo_data=load_settings().auto_seed_demo_data)
+settings = load_settings()
+bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
+render_portal_sidebar(settings)
 dashboard_service = DashboardService()
 
 render_portal_header(

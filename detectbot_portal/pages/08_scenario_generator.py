@@ -8,6 +8,7 @@ import yaml
 try:
     from detectbot_portal.bootstrap import bootstrap_portal
     from detectbot_portal.config.settings import load_settings
+    from detectbot_portal.lib.navigation import render_portal_sidebar
     from detectbot_portal.lib.ui import render_portal_header
     from detectbot_portal.services.option_generator_service import build_command, build_config_payload
     from detectbot_portal.services.scenario_generator_service import (
@@ -31,6 +32,7 @@ try:
 except ModuleNotFoundError:
     from bootstrap import bootstrap_portal
     from config.settings import load_settings
+    from lib.navigation import render_portal_sidebar
     from lib.ui import render_portal_header
     from services.option_generator_service import build_command, build_config_payload
     from services.scenario_generator_service import (
@@ -70,7 +72,9 @@ def copy_button(label: str, value: str) -> None:
 
 st.set_page_config(page_title="DetectBot Portal - Scenario Generator", page_icon="SG", layout="wide")
 
-bootstrap_portal(seed_demo_data=load_settings().auto_seed_demo_data)
+settings = load_settings()
+bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
+render_portal_sidebar(settings)
 
 render_portal_header("시나리오 생성기", "운영 상황에 맞는 시나리오를 선택해 Detect Bot 옵션을 조합하고 CLI/YAML/JSON까지 바로 생성합니다.")
 

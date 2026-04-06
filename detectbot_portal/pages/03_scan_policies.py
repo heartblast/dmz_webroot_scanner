@@ -2,6 +2,7 @@ import streamlit as st
 
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
+from lib.navigation import render_portal_sidebar
 from lib.models import POLICY_MODES
 from lib.ui import dataframe_or_info, format_timestamp_columns, lines_to_list, render_portal_header
 from services.policy_service import PolicyService
@@ -9,7 +10,9 @@ from services.policy_service import PolicyService
 
 st.set_page_config(page_title="DetectBot Portal - Scan Policies", page_icon="PL", layout="wide")
 
-bootstrap_portal(seed_demo_data=load_settings().auto_seed_demo_data)
+settings = load_settings()
+bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
+render_portal_sidebar(settings)
 policy_service = PolicyService()
 
 render_portal_header(

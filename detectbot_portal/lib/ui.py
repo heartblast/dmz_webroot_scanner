@@ -194,15 +194,32 @@ def render_portal_header(title, caption):
     st.caption(caption)
 
 
+def render_portal_sidebar(settings):
+    with st.sidebar:
+        st.markdown("### DetectBot Portal")
+        st.caption(f"backend: `{settings.database.backend}`")
+        st.page_link("app.py", label="🏠 Home")
+        st.page_link("pages/01_server_inventory.py", label="🖥️ Server Inventory")
+        st.page_link("pages/02_scan_results.py", label="📋 Scan Results")
+        st.page_link("pages/03_findings.py", label="🚨 Findings")
+        st.page_link("pages/03_scan_policies.py", label="🛡️ Scan Policies")
+        st.page_link("pages/04_dashboard.py", label="📊 Dashboard")
+        st.page_link("pages/04_policies.py", label="🧩 Policies")
+        st.page_link("pages/05_detection_report_viewer.py", label="📄 Report Viewer")
+        st.page_link("pages/06_settings_admin.py", label="⚙️ Settings")
+        st.page_link("pages/07_option_generator.py", label="🧪 Option Generator")
+        st.page_link("pages/08_scenario_generator.py", label="🗺️ Scenario Generator")
+
+
 def render_metric_cards(metrics):
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     col1.metric("전체 등록 서버", metrics.get("servers_total", 0))
     col2.metric("최근 점검 서버", metrics.get("recent_scanned_servers", 0))
     col3.metric("전체 탐지 건수", metrics.get("findings_total", 0))
     severity = metrics.get("severity_counts", {})
-    col4.metric("Critical", severity.get("critical", 0))
-    col5.metric("High", severity.get("high", 0))
-    col6.metric("Medium / Low", severity.get("medium", 0) + severity.get("low", 0))
+    col4.metric("심각", severity.get("critical", 0))
+    col5.metric("높음", severity.get("high", 0))
+    col6.metric("보통 / 낮음", severity.get("medium", 0) + severity.get("low", 0))
 
 
 def render_metric_summary(metrics):

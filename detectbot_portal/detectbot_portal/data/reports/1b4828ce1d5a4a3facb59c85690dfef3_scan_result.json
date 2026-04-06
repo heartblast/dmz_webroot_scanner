@@ -1,0 +1,11 @@
+{
+  "scanned_at": "2026-04-03T08:56:58+09:00",
+  "os": "windows",
+  "host": "PC-1250024I01",
+  "findings": [],
+  "scanned_site_packages_count": 10,
+  "vulnerable_findings_count": 0,
+  "output_path": "D:\\golang\\go-workspace\\litellm_scanner\\scan_result.json",
+  "worker_count": 4,
+  "scan_target_count": 37
+}

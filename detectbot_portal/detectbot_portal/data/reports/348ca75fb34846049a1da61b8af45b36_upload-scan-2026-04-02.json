@@ -1,0 +1,141 @@
+{
+  "report_version": "1.0",
+  "generated_at": "2026-04-02T16:52:15+09:00",
+  "scan_started_at": "2026-04-02T16:52:15+09:00",
+  "host": {
+    "hostname": "PC-1250024I01",
+    "ip_addresses": [
+      "10.97.90.16"
+    ],
+    "primary_ip": "10.97.90.16",
+    "os_type": "windows",
+    "platform": "windows/amd64",
+    "collected_at": "2026-04-02T16:52:15+09:00"
+  },
+  "inputs": [],
+  "config": {
+    "nginx_dump": "",
+    "apache_dump": "",
+    "server_type": "manual",
+    "scan": true,
+    "out": "d:\\upload-scan-2026-04-02.json",
+    "max_depth": 18,
+    "max_size_mb": 150,
+    "newer_than_h": 168,
+    "preset": "",
+    "config": "D:\\upload\\dmz_scan_config-n.yaml",
+    "exclude": [
+      "/var/cache",
+      "/tmp",
+      "/var/tmp",
+      "node_modules"
+    ],
+    "allow_mime_prefix": [
+      "text/html",
+      "text/css",
+      "application/javascript",
+      "text/javascript",
+      "image/",
+      "font/",
+      "application/font-"
+    ],
+    "allow_ext": [
+      ".html",
+      ".htm",
+      ".css",
+      ".js",
+      ".mjs",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".svg",
+      ".webp",
+      ".ico",
+      ".woff",
+      ".woff2",
+      ".ttf",
+      ".eot",
+      ".otf"
+    ],
+    "watch_dirs": [
+      "D:\\dremio"
+    ],
+    "hash": true,
+    "follow_symlink": false,
+    "rules": {
+      "enable": null,
+      "disable": null
+    },
+    "kafka": {
+      "enabled": false,
+      "brokers": null,
+      "topic": "",
+      "client_id": "detectbot",
+      "tls": false,
+      "sasl_enabled": false,
+      "username": "",
+      "password_env": "",
+      "mask_sensitive": false
+    },
+    "workers": 6,
+    "content_scan": true,
+    "content_max_bytes": 131072,
+    "content_max_size_kb": 2048,
+    "content_exts": [
+      ".env",
+      ".yaml",
+      ".yml",
+      ".json",
+      ".xml",
+      ".properties",
+      ".conf",
+      ".ini",
+      ".txt",
+      ".config",
+      ".cfg",
+      ".toml"
+    ],
+    "pii_scan": true,
+    "pii_exts": [
+      ".yaml",
+      ".yml",
+      ".json",
+      ".xml",
+      ".properties",
+      ".conf",
+      ".ini",
+      ".txt",
+      ".log",
+      ".csv",
+      ".tsv"
+    ],
+    "pii_max_size_kb": 512,
+    "pii_max_bytes": 131072,
+    "pii_max_matches": 10,
+    "pii_mask": true,
+    "pii_store_sample": true,
+    "pii_context_keywords": true
+  },
+  "active_rules": [
+    "allowlist",
+    "high_risk_ext",
+    "large_file",
+    "ext_mime_mismatch",
+    "secret_patterns",
+    "pii_patterns"
+  ],
+  "roots": [
+    {
+      "path": "D:\\dremio",
+      "real_path": "D:\\dremio",
+      "source": "manual"
+    }
+  ],
+  "findings": [],
+  "stats": {
+    "roots_count": 1,
+    "scanned_files": 25520,
+    "findings_count": 0
+  }
+}

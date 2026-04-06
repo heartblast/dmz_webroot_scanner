@@ -209,10 +209,13 @@ def _scan_job_to_dict(scan_job: ScanJob) -> dict:
 def _finding_to_dict(finding: ScanFinding, scan_job: ScanJob | None = None) -> dict:
     reason_codes = _json_loads(finding.reasons_json, [])
     pattern_codes = _json_loads(finding.matched_patterns_json, [])
+    server = scan_job.server if scan_job and scan_job.server else None
     row = {
         "id": finding.id,
         "scan_run_id": finding.scan_job_id,
         "server_id": finding.server_id or "",
+        "server_name": server.server_name if server else "",
+        "hostname": server.hostname if server else "",
         "generated_at": scan_job.generated_at if scan_job else None,
         "severity": finding.severity,
         "path": finding.path,
@@ -236,6 +239,19 @@ def _finding_to_dict(finding: ScanFinding, scan_job: ScanJob | None = None) -> d
     return row
 
 
+def _load_report_json(stored_path: str) -> tuple[dict | None, str | None]:
+    path_text = str(stored_path or "").strip()
+    if not path_text:
+        return None, "stored_path is empty"
+    report_path = Path(path_text)
+    if not report_path.is_file():
+        return None, f"report file not found: {report_path}"
+    try:
+        return json.loads(report_path.read_text(encoding="utf-8")), None
+    except Exception as exc:
+        return None, f"failed to read report: {exc}"
+
+
 class ScanService:
     def list_scan_runs_df(self, *, server_id: str = "", limit: int = 200) -> pd.DataFrame:
         with session_scope() as session:
@@ -257,8 +273,10 @@ class ScanService:
             for finding in findings:
                 reason_counter.update(finding["reasons"])
                 pattern_counter.update(finding["matched_patterns"])
+            run_row = _scan_job_to_dict(scan_job)
+            raw_report, report_error = _load_report_json(run_row.get("stored_path", ""))
             return {
-                "run": _scan_job_to_dict(scan_job),
+                "run": run_row,
                 "roots": pd.DataFrame(_json_loads(summary.roots_json if summary else "[]", [])),
                 "severity_counts": pd.DataFrame(
                     [{"severity": key, "count": value} for key, value in severity_counter.items()]
@@ -276,6 +294,8 @@ class ScanService:
                     ]
                 ),
                 "findings": pd.DataFrame(findings),
+                "raw_report": raw_report,
+                "report_error": report_error,
             }
 
     def search_findings_df(self, filters: dict) -> pd.DataFrame:
@@ -296,12 +316,6 @@ class ScanService:
                     scan_job = scan_job_repository.get_by_id(finding.scan_job_id)
                     scan_job_map[finding.scan_job_id] = scan_job
                 row = _finding_to_dict(finding, scan_job)
-                if scan_job and scan_job.server:
-                    row["server_name"] = scan_job.server.server_name
-                    row["hostname"] = scan_job.server.hostname or ""
-                else:
-                    row["server_name"] = ""
-                    row["hostname"] = ""
                 rows.append(row)
 
         df = pd.DataFrame(rows)
@@ -326,9 +340,6 @@ class ScanService:
                 return None
             scan_job = ScanJobRepository(session).get_by_id(finding.scan_job_id)
             row = _finding_to_dict(finding, scan_job)
-            if scan_job and scan_job.server:
-                row["server_name"] = scan_job.server.server_name
-                row["hostname"] = scan_job.server.hostname or ""
             if scan_job:
                 row["stored_path"] = scan_job.report_stored_path or ""
                 row["scan_started_at"] = scan_job.scan_started_at

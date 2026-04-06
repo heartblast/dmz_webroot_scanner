@@ -3,23 +3,19 @@ import json
 import pandas as pd
 import streamlit as st
 
+from bootstrap import bootstrap_portal
+from config.settings import load_settings
 from lib.codebook import get_pattern_meaning, get_reason_meaning
-from lib.db import init_db
+from lib.navigation import render_portal_sidebar
 from lib.report_viewer import (
     SEVERITY_ORDER,
     build_findings_df,
-    build_roots_df,
     filter_findings_df,
     fmt_dt,
     host_summary_text,
     interpret_finding,
-    normalize_host_info,
-    normalize_list,
-    normalize_roots,
     summarize_findings,
 )
-from lib.repository import list_scan_runs, list_servers, load_scan_run_report
-from lib.seed import bootstrap_demo_data
 from lib.ui import (
     dataframe_or_info,
     format_timestamp_columns,
@@ -27,16 +23,23 @@ from lib.ui import (
     render_metric_summary,
     render_portal_header,
 )
+from services.scan_service import ScanService
+from services.server_service import ServerService
 
 
 st.set_page_config(
-    page_title="DetectBot Portal - 탐지결과조회",
-    page_icon="🔎",
+    page_title="DetectBot 포털 - 탐지 리포트 뷰어",
+    page_icon="RV",
     layout="wide",
 )
-init_db()
-bootstrap_demo_data()
+
+settings = load_settings()
+bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
 inject_portal_css()
+render_portal_sidebar(settings)
+
+server_service = ServerService()
+scan_service = ScanService()
 
 
 def _server_label(servers_df, server_id):
@@ -44,6 +47,15 @@ def _server_label(servers_df, server_id):
         return "전체 서버"
     matched = servers_df.loc[servers_df["id"] == server_id, "server_name"]
     return matched.iloc[0] if not matched.empty else server_id
+
+
+def _safe_json_loads(text, default):
+    if not text:
+        return default
+    try:
+        return json.loads(text)
+    except Exception:
+        return default
 
 
 def _apply_focus_from_other_pages():
@@ -72,17 +84,79 @@ def _choose_default_run_id(runs_df):
     return default_run_id
 
 
+def _build_host_info(run_meta, raw_report):
+    host = {
+        "hostname": run_meta.get("host_hostname") or run_meta.get("hostname") or "",
+        "primary_ip": run_meta.get("host_primary_ip") or run_meta.get("ip_address") or "",
+        "os_type": run_meta.get("host_os_type") or run_meta.get("os_type") or "",
+        "os_name": run_meta.get("host_os_name") or run_meta.get("os_name") or "",
+        "os_version": "",
+        "platform": run_meta.get("host_platform") or run_meta.get("platform") or "",
+    }
+    if raw_report and isinstance(raw_report.get("host"), dict):
+        report_host = raw_report["host"]
+        host["hostname"] = report_host.get("hostname") or host["hostname"]
+        host["primary_ip"] = report_host.get("primary_ip") or host["primary_ip"]
+        host["os_type"] = report_host.get("os_type") or host["os_type"]
+        host["os_name"] = report_host.get("os_name") or host["os_name"]
+        host["os_version"] = report_host.get("os_version") or host["os_version"]
+        host["platform"] = report_host.get("platform") or host["platform"]
+    return host
+
+
+def _build_roots_df(detail, raw_report):
+    if raw_report:
+        roots = raw_report.get("roots") or raw_report.get("scan_roots") or []
+        rows = [
+            {
+                "path": root.get("path", ""),
+                "real_path": root.get("real_path", ""),
+                "source": root.get("source", ""),
+            }
+            for root in roots
+        ]
+        return pd.DataFrame(rows)
+    return detail.get("roots")
+
+
+def _build_report_payload(detail):
+    run_meta = detail.get("run") or {}
+    raw_report = detail.get("raw_report")
+    findings_records = detail["findings"].to_dict("records") if detail.get("findings") is not None else []
+    if raw_report:
+        return raw_report, findings_records
+
+    payload = {
+        "report_version": run_meta.get("scanner_version") or "",
+        "generated_at": run_meta.get("generated_at"),
+        "scan_started_at": run_meta.get("scan_started_at"),
+        "host": {
+            "hostname": run_meta.get("host_hostname") or run_meta.get("hostname") or "",
+            "primary_ip": run_meta.get("host_primary_ip") or run_meta.get("ip_address") or "",
+            "os_type": run_meta.get("host_os_type") or run_meta.get("os_type") or "",
+            "os_name": run_meta.get("host_os_name") or run_meta.get("os_name") or "",
+            "platform": run_meta.get("host_platform") or run_meta.get("platform") or "",
+        },
+        "config": _safe_json_loads(run_meta.get("config_json"), {}),
+        "active_rules": _safe_json_loads(run_meta.get("active_rules_json"), []),
+        "stats": {
+            "findings_count": run_meta.get("findings_count", 0),
+            "roots_count": run_meta.get("roots_count", 0),
+            "scanned_files": run_meta.get("scanned_files", 0),
+        },
+        "findings": findings_records,
+    }
+    return payload, findings_records
+
+
 render_portal_header(
-    "탐지결과조회",
-    "서버와 스캔 이력을 기준으로 저장된 리포트를 선택하고, 탐지 결과를 운영 포털 안에서 상세 해석합니다.",
+    "탐지 리포트 뷰어",
+    "서버와 스캔 실행 이력을 선택한 뒤, 저장된 리포트의 요약과 상세 Findings를 운영자 화면에서 확인합니다.",
 )
 
 focus_applied = _apply_focus_from_other_pages()
 
-servers_df = list_servers(active_only=False)
-if servers_df is None:
-    servers_df = format_timestamp_columns(servers_df, [])
-
+servers_df = server_service.list_servers_df(active_only=False)
 server_options = [""]
 if servers_df is not None and not servers_df.empty:
     server_options.extend(servers_df["id"].tolist())
@@ -98,19 +172,19 @@ selected_server_id = st.selectbox(
 )
 
 server_runs_df = format_timestamp_columns(
-    list_scan_runs(server_id=selected_server_id, limit=100) if selected_server_id else None,
-    ["scan_started_at", "generated_at"],
+    scan_service.list_scan_runs_df(server_id=selected_server_id, limit=100) if selected_server_id else None,
+    ["scan_started_at", "generated_at", "uploaded_at", "created_at"],
 )
 
 if focus_applied:
-    st.info("다른 페이지에서 선택한 서버/실행 기준으로 탐지결과조회 화면이 열렸습니다. 여기서 서버나 실행을 자유롭게 바꿀 수 있습니다.")
+    st.info("다른 페이지에서 선택한 서버 또는 실행 이력을 기준으로 리포트 뷰어를 열었습니다. 필요하면 여기에서 다시 변경할 수 있습니다.")
 
 if not selected_server_id:
-    st.info("탐지결과를 보려면 먼저 서버를 선택해 주세요.")
+    st.info("탐지 리포트를 보려면 먼저 서버를 선택해 주세요.")
     st.stop()
 
 if server_runs_df is None or server_runs_df.empty:
-    st.info("선택한 서버에 연결된 스캔 이력이 없습니다.")
+    st.info("선택한 서버에 연결된 스캔 실행 이력이 없습니다.")
     st.stop()
 
 selected_run_id = _choose_default_run_id(server_runs_df)
@@ -120,37 +194,38 @@ selected_run_id = st.selectbox(
     index=server_runs_df["id"].tolist().index(selected_run_id),
     format_func=lambda value: (
         f"{server_runs_df.loc[server_runs_df['id'] == value, 'generated_at'].iloc[0] or server_runs_df.loc[server_runs_df['id'] == value, 'scan_started_at'].iloc[0]} / "
-        f"findings {int(server_runs_df.loc[server_runs_df['id'] == value, 'findings_count'].iloc[0] or 0)} / "
+        f"탐지 {int(server_runs_df.loc[server_runs_df['id'] == value, 'findings_count'].iloc[0] or 0)}건 / "
         f"{server_runs_df.loc[server_runs_df['id'] == value, 'input_type'].iloc[0] or '-'}"
     ),
     key="report_viewer_run_id",
 )
 
-loaded = load_scan_run_report(selected_run_id)
-run_meta = loaded.get("run")
-report = loaded.get("report")
-load_error = loaded.get("error")
-
-if load_error:
-    st.error(f"선택한 실행의 원본 리포트를 불러오지 못했습니다. {load_error}")
+detail = scan_service.get_scan_run_detail(selected_run_id)
+if not detail:
+    st.error("선택한 실행 이력의 상세 정보를 불러오지 못했습니다.")
     st.stop()
 
-findings = normalize_list(report.get("findings"))
-roots = normalize_roots(report)
-host = normalize_host_info(report)
-config = report.get("config", {}) or {}
-active_rules = normalize_list(report.get("active_rules"))
-stats = report.get("stats", {}) or {}
+run_meta = detail.get("run") or {}
+raw_report, raw_findings = _build_report_payload(detail)
+report_error = detail.get("report_error")
+host = _build_host_info(run_meta, raw_report)
+config = raw_report.get("config", {}) if raw_report else _safe_json_loads(run_meta.get("config_json"), {})
+active_rules = raw_report.get("active_rules", []) if raw_report else _safe_json_loads(run_meta.get("active_rules_json"), [])
+stats = raw_report.get("stats", {}) if raw_report else {}
+findings = raw_findings
 findings_df = build_findings_df(findings)
-roots_df = build_roots_df(roots)
+roots_df = _build_roots_df(detail, raw_report)
 severity_counter, reason_counter, pattern_counter = summarize_findings(findings_df)
+
+if report_error and not raw_report:
+    st.warning(f"원본 리포트 파일을 직접 읽지는 못했습니다. 저장된 실행 정보 기준으로 화면을 구성합니다. 사유: {report_error}")
 
 render_metric_summary(
     [
         {"label": "선택 서버", "value": _server_label(servers_df, selected_server_id)},
-        {"label": "실행 시각", "value": fmt_dt(report.get("scan_started_at") or report.get("generated_at"))},
-        {"label": "Findings", "value": stats.get("findings_count", len(findings))},
-        {"label": "Roots", "value": stats.get("roots_count", len(roots))},
+        {"label": "실행 시각", "value": fmt_dt(run_meta.get("scan_started_at") or run_meta.get("generated_at"))},
+        {"label": "Findings", "value": stats.get("findings_count", run_meta.get("findings_count", len(findings)))},
+        {"label": "Roots", "value": stats.get("roots_count", run_meta.get("roots_count", 0))},
         {"label": "Host", "value": host_summary_text(host)},
     ]
 )
@@ -159,22 +234,22 @@ with st.expander("리포트 기본 정보", expanded=True):
     left, right = st.columns(2)
     with left:
         os_detail = " ".join([part for part in [host.get("os_name"), host.get("os_version")] if part])
-        st.write(f"**report_version**: {report.get('report_version', '-')}")
-        st.write(f"**hostname**: {host.get('hostname') or '알 수 없음'}")
-        st.write(f"**primary_ip**: {host.get('primary_ip') or '알 수 없음'}")
-        st.write(f"**os_type**: {host.get('os_type') or '알 수 없음'}")
-        st.write(f"**os_detail**: {os_detail or '알 수 없음'}")
-        st.write(f"**platform**: {host.get('platform') or '알 수 없음'}")
-        st.write(f"**generated_at**: {fmt_dt(report.get('generated_at'))}")
-        st.write(f"**scan_started_at**: {fmt_dt(report.get('scan_started_at'))}")
+        st.write(f"**report_version**: {raw_report.get('report_version', run_meta.get('scanner_version') or '-')}")
+        st.write(f"**hostname**: {host.get('hostname') or '-'}")
+        st.write(f"**primary_ip**: {host.get('primary_ip') or '-'}")
+        st.write(f"**os_type**: {host.get('os_type') or '-'}")
+        st.write(f"**os_detail**: {os_detail or '-'}")
+        st.write(f"**platform**: {host.get('platform') or '-'}")
+        st.write(f"**generated_at**: {fmt_dt(raw_report.get('generated_at') if raw_report else run_meta.get('generated_at'))}")
+        st.write(f"**scan_started_at**: {fmt_dt(raw_report.get('scan_started_at') if raw_report else run_meta.get('scan_started_at'))}")
         st.write(f"**active_rules**: {', '.join(active_rules) if active_rules else '-'}")
     with right:
-        st.write(f"**server_name**: {server_runs_df.loc[server_runs_df['id'] == selected_run_id, 'server_name'].iloc[0] or '-'}")
+        st.write(f"**server_name**: {run_meta.get('server_name') or '-'}")
         st.write(f"**file_name**: {run_meta.get('file_name') or '-'}")
         st.write(f"**stored_path**: {run_meta.get('stored_path') or '-'}")
-        st.write(f"**roots_count**: {stats.get('roots_count', len(roots))}")
-        st.write(f"**scanned_files**: {stats.get('scanned_files', '-')}")
-        st.write(f"**findings_count**: {stats.get('findings_count', len(findings))}")
+        st.write(f"**roots_count**: {stats.get('roots_count', run_meta.get('roots_count', 0))}")
+        st.write(f"**scanned_files**: {stats.get('scanned_files', run_meta.get('scanned_files', '-'))}")
+        st.write(f"**findings_count**: {stats.get('findings_count', run_meta.get('findings_count', len(findings)))}")
 
 tab_summary, tab_roots, tab_findings, tab_config, tab_raw = st.tabs(
     ["요약", "Roots", "Findings", "Config", "원본 JSON"]
@@ -190,19 +265,11 @@ with tab_summary:
             if severity_counter.get(severity, 0) > 0
         ]
         reason_rows = [
-            {
-                "reason_code": code,
-                "meaning": get_reason_meaning(code),
-                "count": count,
-            }
+            {"reason_code": code, "meaning": get_reason_meaning(code), "count": count}
             for code, count in reason_counter.most_common(20)
         ]
         pattern_rows = [
-            {
-                "pattern": code,
-                "meaning": get_pattern_meaning(code),
-                "count": count,
-            }
+            {"pattern": code, "meaning": get_pattern_meaning(code), "count": count}
             for code, count in pattern_counter.most_common(20)
         ]
         col1, col2 = st.columns(2)
@@ -262,24 +329,13 @@ with tab_findings:
             "matched_patterns_text",
         ]
         st.write(f"조회 결과: **{len(filtered_df)}건**")
-        st.dataframe(
-            filtered_df[display_cols],
-            width="stretch",
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-        )
+        st.dataframe(filtered_df[display_cols], width="stretch", hide_index=True)
 
-        selected_idx = st.session_state.get("report_viewer_selected_finding_idx", 0)
         if len(filtered_df) > 0:
-            selected_idx = min(selected_idx, len(filtered_df) - 1)
             selected_idx = st.selectbox(
                 "상세 해석 대상 선택",
                 options=filtered_df.index.tolist(),
-                index=filtered_df.index.tolist().index(filtered_df.index[selected_idx]),
-                format_func=lambda index: (
-                    f"[{filtered_df.loc[index, 'severity']}] {filtered_df.loc[index, 'path']}"
-                ),
+                format_func=lambda index: f"[{filtered_df.loc[index, 'severity']}] {filtered_df.loc[index, 'path']}",
                 key="report_viewer_selected_finding_idx",
             )
             row = filtered_df.loc[selected_idx]
@@ -320,10 +376,18 @@ with tab_config:
     if config:
         st.json(config, expanded=False)
     else:
-        st.info("config 정보가 없습니다.")
+        st.info("저장된 설정 정보가 없습니다.")
+
+    st.markdown("### 활성 규칙")
+    if active_rules:
+        st.write(", ".join(str(rule) for rule in active_rules))
+    else:
+        st.info("활성 규칙 정보가 없습니다.")
 
 with tab_raw:
-    st.markdown("### 원본 JSON")
-    st.json(report, expanded=False)
-    with st.expander("원본 JSON 텍스트", expanded=False):
-        st.code(json.dumps(report, ensure_ascii=False, indent=2), language="json")
+    st.markdown("### 원본 리포트 JSON")
+    if raw_report:
+        st.json(raw_report, expanded=False)
+    else:
+        st.info("원본 리포트 파일을 직접 불러오지 못해 실행 메타데이터만 확인할 수 있습니다.")
+        st.json(run_meta, expanded=False)
