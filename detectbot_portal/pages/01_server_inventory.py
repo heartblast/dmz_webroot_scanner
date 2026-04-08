@@ -67,6 +67,26 @@ def selected_server(servers_df: pd.DataFrame):
     return server_service.get_server(selected_id)
 
 
+def sync_selected_server_from_table(selection, servers_df: pd.DataFrame):
+    if servers_df is None or servers_df.empty:
+        return
+
+    selected_rows = []
+    try:
+        selected_rows = selection.selection.rows
+    except Exception:
+        selected_rows = []
+
+    if not selected_rows:
+        return
+
+    next_selected_id = str(servers_df.iloc[selected_rows[0]]["id"])
+    current_selected_id = st.session_state.get("inventory_selected_server_id", "")
+    if next_selected_id != current_selected_id:
+        st.session_state["inventory_selected_server_id"] = next_selected_id
+        st.rerun()
+
+
 render_portal_header(
     "서버 인벤토리",
     "등록된 서버를 조회하고, 선택한 서버의 상세 정보와 최근 이력을 확인하거나 수정할 수 있습니다.",
@@ -120,6 +140,7 @@ tab_list, tab_detail, tab_create, tab_edit = st.tabs(["목록", "상세", "등�
 with tab_list:
     st.markdown("### 서버 목록")
     st.caption("목록에서 서버 한 대를 선택하면 아래의 상세 보기와 수정/삭제 작업을 바로 진행할 수 있습니다.")
+    st.caption("Tip: click anywhere on a row to change the selected server.")
     display_df = build_server_inventory_display_df(servers_df)
     if display_df is None or display_df.empty:
         st.info("현재 검색 조건에 맞는 서버가 없습니다. 검색 조건을 초기화하거나 새 서버를 등록해 보세요.")
@@ -138,13 +159,9 @@ with tab_list:
             on_select="rerun",
             selection_mode="single-row",
         )
-        selected_rows = []
-        try:
-            selected_rows = selection.selection.rows
-        except Exception:
-            selected_rows = []
-        if selected_rows:
-            st.session_state["inventory_selected_server_id"] = str(servers_df.iloc[selected_rows[0]]["id"])
+        sync_selected_server_from_table(selection, servers_df)
+        if selected:
+            st.caption(f"Selected server: {selected.get('server_name', '-')}")
 
 with tab_detail:
     st.markdown("### 선택 서버 상세")
