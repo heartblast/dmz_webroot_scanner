@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 
 from config.settings import load_settings
 from db.base import utcnow
@@ -9,13 +9,38 @@ from db.models import AppSetting
 from db.models import Base
 
 
-SCHEMA_VERSION = "2026-04-02"
+SCHEMA_VERSION = "2026-04-13-user-profile"
+
+
+def _ensure_portal_user_profile_columns() -> None:
+    engine = get_engine()
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    if "portal_user" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("portal_user")}
+    columns = {
+        "full_name": "VARCHAR(255)",
+        "department": "VARCHAR(255)",
+        "email": "VARCHAR(255)",
+    }
+    missing_columns = [name for name in columns if name not in existing_columns]
+    if not missing_columns:
+        return
+
+    with engine.begin() as connection:
+        for column_name in missing_columns:
+            connection.execute(
+                text(f"ALTER TABLE portal_user ADD COLUMN {column_name} {columns[column_name]}")
+            )
 
 
 def initialize_schema() -> None:
     settings = load_settings()
     settings.reports_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=get_engine())
+    _ensure_portal_user_profile_columns()
     with session_scope() as session:
         schema_setting = session.scalar(
             select(AppSetting).where(AppSetting.setting_key == "schema_version")

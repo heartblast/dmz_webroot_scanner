@@ -6,6 +6,7 @@ import streamlit.components.v1 as components
 import yaml
 
 try:
+    from detectbot_portal.auth.session import require_login
     from detectbot_portal.bootstrap import bootstrap_portal
     from detectbot_portal.config.settings import load_settings
     from detectbot_portal.lib.navigation import render_portal_sidebar
@@ -30,6 +31,7 @@ try:
         sync_advanced_state,
     )
 except ModuleNotFoundError:
+    from auth.session import require_login
     from bootstrap import bootstrap_portal
     from config.settings import load_settings
     from lib.navigation import render_portal_sidebar
@@ -74,7 +76,8 @@ st.set_page_config(page_title="DetectBot Portal - Scenario Generator", page_icon
 
 settings = load_settings()
 bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
-render_portal_sidebar(settings)
+current_user = require_login()
+render_portal_sidebar(settings, current_user)
 
 render_portal_header("시나리오 생성기", "운영 상황에 맞는 시나리오를 선택해 Detect Bot 옵션을 조합하고 CLI/YAML/JSON까지 바로 생성합니다.")
 

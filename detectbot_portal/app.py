@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from auth.session import require_login
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
 from lib.navigation import render_portal_sidebar
@@ -29,6 +30,7 @@ st.set_page_config(page_title="DetectBot 포털", page_icon="DB", layout="wide")
 
 settings = load_settings()
 bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
+current_user = require_login()
 dashboard_service = DashboardService()
 
 
@@ -240,7 +242,7 @@ def render_top_list(df: pd.DataFrame, code_col: str, meaning_col: str, title: st
         st.markdown(f"- `{code}`: {meaning} ({count})")
 
 
-render_portal_sidebar(settings)
+render_portal_sidebar(settings, current_user)
 
 render_portal_header(
     "DetectBot 포털",

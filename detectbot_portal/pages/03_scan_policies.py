@@ -1,5 +1,6 @@
 import streamlit as st
 
+from auth.session import require_login
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
 from lib.navigation import render_portal_sidebar
@@ -12,7 +13,8 @@ st.set_page_config(page_title="DetectBot Portal - Scan Policies", page_icon="PL"
 
 settings = load_settings()
 bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
-render_portal_sidebar(settings)
+current_user = require_login()
+render_portal_sidebar(settings, current_user)
 policy_service = PolicyService()
 
 render_portal_header(

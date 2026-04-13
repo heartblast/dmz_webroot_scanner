@@ -1,5 +1,7 @@
 import streamlit as st
 
+from auth.session import require_login
+from bootstrap import bootstrap_portal
 from config.settings import load_settings
 from lib.navigation import render_portal_sidebar
 from lib.db import init_db
@@ -17,7 +19,9 @@ st.set_page_config(
 init_db()
 bootstrap_demo_data()
 settings = load_settings()
-render_portal_sidebar(settings)
+bootstrap_portal(seed_demo_data=False)
+current_user = require_login()
+render_portal_sidebar(settings, current_user)
 
 render_portal_header(
     "정책 / 옵션 관리",

@@ -3,6 +3,7 @@ from collections import Counter
 import pandas as pd
 import streamlit as st
 
+from auth.session import require_login
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
 from lib.navigation import render_portal_sidebar
@@ -35,7 +36,8 @@ st.set_page_config(page_title="DetectBot 포털 - Findings", page_icon="FD", lay
 
 settings = load_settings()
 bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
-render_portal_sidebar(settings)
+current_user = require_login()
+render_portal_sidebar(settings, current_user)
 
 server_service = ServerService()
 scan_service = ScanService()

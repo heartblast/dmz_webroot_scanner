@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
+from auth.session import require_login
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
 from lib.models import INPUT_TYPES
@@ -18,8 +19,9 @@ st.set_page_config(page_title="DetectBot 포털 - 리포트 업로드 및 저장
 
 settings = load_settings()
 bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
+current_user = require_login()
 inject_portal_css()
-render_portal_sidebar(settings)
+render_portal_sidebar(settings, current_user)
 
 scan_service = ScanService()
 server_service = ServerService()

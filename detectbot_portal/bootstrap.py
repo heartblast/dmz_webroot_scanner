@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from auth.service import AuthService
 from db.schema_init import initialize_schema
 from services.policy_service import PolicyService
 from services.scan_service import ScanService
@@ -20,6 +21,7 @@ def _load_seed_dataset() -> dict:
 
 def bootstrap_portal(seed_demo_data: bool = True) -> None:
     initialize_schema()
+    AuthService().ensure_initial_admin()
     if not seed_demo_data:
         return
 

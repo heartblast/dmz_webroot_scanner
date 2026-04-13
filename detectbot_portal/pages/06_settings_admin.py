@@ -1,5 +1,7 @@
 import streamlit as st
 
+from auth.session import require_role
+from bootstrap import bootstrap_portal
 from config.crypto import ENCRYPTION_KEY_ENV, SettingsCryptoError
 from config.settings import load_settings
 from lib.navigation import render_portal_sidebar
@@ -9,9 +11,11 @@ from services.settings_service import SettingsService
 st.set_page_config(page_title="DetectBot Portal - Settings", page_icon="ST", layout="wide")
 
 settings = load_settings()
+bootstrap_portal(seed_demo_data=False)
+current_user = require_role("admin")
 settings_service = SettingsService()
 editor_state = settings_service.load_editor_state()
-render_portal_sidebar(settings)
+render_portal_sidebar(settings, current_user)
 
 st.title("Settings")
 st.caption("관리자용 설정 UI입니다. YAML 기반 설정을 조회/수정하고 PostgreSQL 비밀번호는 암호화해서 저장합니다.")

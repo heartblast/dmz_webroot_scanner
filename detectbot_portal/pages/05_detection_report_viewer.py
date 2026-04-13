@@ -3,6 +3,8 @@ import json
 import pandas as pd
 import streamlit as st
 
+from auth.rbac import ROLE_ADMIN
+from auth.session import require_login
 from bootstrap import bootstrap_portal
 from config.settings import load_settings
 from lib.codebook import get_pattern_meaning, get_reason_meaning
@@ -35,11 +37,39 @@ st.set_page_config(
 
 settings = load_settings()
 bootstrap_portal(seed_demo_data=settings.auto_seed_demo_data)
+current_user = require_login()
 inject_portal_css()
-render_portal_sidebar(settings)
+render_portal_sidebar(settings, current_user)
 
 server_service = ServerService()
 scan_service = ScanService()
+is_admin = current_user.get("role") == ROLE_ADMIN
+
+
+def _mask_value(value, *, empty: str = "-") -> str:
+    if value is None or value == "":
+        return empty
+    return "********"
+
+
+def _mask_df_columns(df: pd.DataFrame | None, columns: list[str]) -> pd.DataFrame | None:
+    if df is None or df.empty or is_admin:
+        return df
+    masked = df.copy()
+    for column in columns:
+        if column in masked.columns:
+            masked[column] = masked[column].apply(_mask_value)
+    return masked
+
+
+def _mask_finding_row(row: pd.Series) -> pd.Series:
+    if is_admin:
+        return row
+    masked = row.copy()
+    for column in ["real_path", "root_matched", "sha256"]:
+        if column in masked:
+            masked[column] = _mask_value(masked[column])
+    return masked
 
 
 def _server_label(servers_df, server_id):
@@ -219,6 +249,14 @@ findings_df = build_findings_df(findings)
 roots_df = _build_roots_df(detail, raw_report)
 severity_counter, reason_counter, pattern_counter = summarize_findings(findings_df)
 
+if not is_admin:
+    host["hostname"] = _mask_value(host.get("hostname"))
+    host["primary_ip"] = _mask_value(host.get("primary_ip"))
+    roots_df = _mask_df_columns(roots_df, ["path", "real_path"])
+    findings_df = _mask_df_columns(findings_df, ["real_path", "root_matched", "sha256"])
+    config = {"masked": "일반 사용자는 실행 설정 상세 정보를 볼 수 없습니다."}
+    raw_report = {"masked": "일반 사용자는 원본 JSON을 볼 수 없습니다."}
+
 if report_error and not raw_report:
     st.warning(f"원본 리포트 파일을 직접 읽지는 못했습니다. 저장된 실행 정보 기준으로 화면을 구성합니다. 사유: {report_error}")
 
@@ -228,7 +266,7 @@ render_metric_summary(
         {"label": "실행 시각", "value": fmt_dt(run_meta.get("scan_started_at") or run_meta.get("generated_at"))},
         {"label": "Findings", "value": stats.get("findings_count", run_meta.get("findings_count", len(findings)))},
         {"label": "Roots", "value": stats.get("roots_count", run_meta.get("roots_count", 0))},
-        {"label": "Host", "value": host_summary_text(host)},
+        {"label": "Host", "value": host_summary_text(host) if is_admin else "********"},
     ]
 )
 
@@ -237,8 +275,8 @@ with st.expander("리포트 기본 정보", expanded=True):
     with left:
         os_detail = " ".join([part for part in [host.get("os_name"), host.get("os_version")] if part])
         st.write(f"**report_version**: {raw_report.get('report_version', run_meta.get('scanner_version') or '-')}")
-        st.write(f"**hostname**: {host.get('hostname') or '-'}")
-        st.write(f"**primary_ip**: {host.get('primary_ip') or '-'}")
+        st.write(f"**hostname**: {host.get('hostname') or '-' if is_admin else _mask_value(host.get('hostname'))}")
+        st.write(f"**primary_ip**: {host.get('primary_ip') or '-' if is_admin else _mask_value(host.get('primary_ip'))}")
         st.write(f"**os_type**: {host.get('os_type') or '-'}")
         st.write(f"**os_detail**: {os_detail or '-'}")
         st.write(f"**platform**: {host.get('platform') or '-'}")
@@ -248,7 +286,7 @@ with st.expander("리포트 기본 정보", expanded=True):
     with right:
         st.write(f"**server_name**: {run_meta.get('server_name') or '-'}")
         st.write(f"**file_name**: {run_meta.get('file_name') or '-'}")
-        st.write(f"**stored_path**: {run_meta.get('stored_path') or '-'}")
+        st.write(f"**stored_path**: {run_meta.get('stored_path') or '-' if is_admin else _mask_value(run_meta.get('stored_path'))}")
         st.write(f"**uploaded_at**: {fmt_dt(run_meta.get('uploaded_at'))}")
         st.write(f"**created_at**: {fmt_dt(run_meta.get('created_at'))}")
         st.write(f"**roots_count**: {stats.get('roots_count', run_meta.get('roots_count', 0))}")
