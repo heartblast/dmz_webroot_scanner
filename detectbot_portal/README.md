@@ -99,22 +99,26 @@ PostgreSQL 실행 시 자동 적용되는 런타임 옵션:
 - `pool_size`
 - `max_overflow`
 
-## 환경변수 요약
+## 환경변수 옵션
 
-- `DETECTBOT_CONFIG_FILE`
-- `DETECTBOT_DATABASE_BACKEND`
-- `DETECTBOT_SQLITE_PATH`
-- `DETECTBOT_POSTGRES_HOST`
-- `DETECTBOT_POSTGRES_PORT`
-- `DETECTBOT_POSTGRES_DB`
-- `DETECTBOT_POSTGRES_USER`
-- `DETECTBOT_POSTGRES_PASSWORD`
-- `DETECTBOT_POSTGRES_POOL_PRE_PING`
-- `DETECTBOT_POSTGRES_POOL_SIZE`
-- `DETECTBOT_POSTGRES_MAX_OVERFLOW`
-- `DETECTBOT_REPORTS_DIR`
-- `DETECTBOT_AUTO_SEED_DEMO_DATA`
-- `DETECTBOT_SETTINGS_ENCRYPTION_KEY`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `DETECTBOT_CONFIG_FILE` | 포털 설정 YAML 경로를 바꿉니다. | 지정한 YAML을 기본 설정과 병합한 뒤 환경변수 값으로 다시 덮어씁니다. | `set DETECTBOT_CONFIG_FILE=D:\path\to\settings.yaml` | 기본값은 `detectbot_portal/config/settings.yaml`입니다. |
+| `DETECTBOT_DATABASE_BACKEND` | 포털 DB 백엔드를 선택합니다. | `sqlite` 또는 `postgresql` 값을 읽어 SQLAlchemy URL 생성 방식을 바꿉니다. | `set DETECTBOT_DATABASE_BACKEND=postgresql` | 기본값은 `sqlite`입니다. |
+| `DETECTBOT_SQLITE_PATH` | SQLite DB 파일 경로를 지정합니다. | SQLite backend일 때 DB 파일 위치로 사용됩니다. 상대 경로면 포털 루트 기준으로 해석됩니다. | `set DETECTBOT_SQLITE_PATH=D:\data\detectbot.sqlite3` | 기본값은 `detectbot_portal/data/detectbot_portal.sqlite3`입니다. |
+| `DETECTBOT_POSTGRES_HOST` | PostgreSQL host를 지정합니다. | PostgreSQL SQLAlchemy URL의 host에 반영됩니다. | `set DETECTBOT_POSTGRES_HOST=localhost` | 기본값은 `localhost`입니다. |
+| `DETECTBOT_POSTGRES_PORT` | PostgreSQL port를 지정합니다. | 정수로 변환되어 PostgreSQL 연결 URL에 반영됩니다. | `set DETECTBOT_POSTGRES_PORT=5432` | 기본값은 `5432`입니다. |
+| `DETECTBOT_POSTGRES_DB` | PostgreSQL database 이름을 지정합니다. | PostgreSQL 연결 URL의 database에 반영됩니다. | `set DETECTBOT_POSTGRES_DB=detectbot_portal` | 기본값은 `detectbot_portal`입니다. |
+| `DETECTBOT_POSTGRES_USER` | PostgreSQL 사용자명을 지정합니다. | PostgreSQL 연결 URL의 user에 반영됩니다. | `set DETECTBOT_POSTGRES_USER=detectbot` | 기본값은 `detectbot`입니다. |
+| `DETECTBOT_POSTGRES_PASSWORD` | PostgreSQL 비밀번호를 지정합니다. | YAML의 평문/암호화 비밀번호보다 우선해 PostgreSQL 연결 URL에 사용됩니다. | `set DETECTBOT_POSTGRES_PASSWORD=detectbot` | 기본값은 빈 값입니다. 환경변수에 있으면 `password_enc` 복호화 결과보다 우선합니다. |
+| `DETECTBOT_POSTGRES_POOL_PRE_PING` | PostgreSQL connection pool pre-ping을 제어합니다. | `1`, `true`, `yes`, `on`이면 true로 처리됩니다. | `set DETECTBOT_POSTGRES_POOL_PRE_PING=true` | 기본값은 `true`입니다. |
+| `DETECTBOT_POSTGRES_POOL_SIZE` | PostgreSQL pool size를 지정합니다. | 정수로 변환되어 SQLAlchemy pool 설정에 반영됩니다. | `set DETECTBOT_POSTGRES_POOL_SIZE=10` | 기본값은 `5`입니다. |
+| `DETECTBOT_POSTGRES_MAX_OVERFLOW` | PostgreSQL pool overflow 크기를 지정합니다. | 정수로 변환되어 SQLAlchemy pool 설정에 반영됩니다. | `set DETECTBOT_POSTGRES_MAX_OVERFLOW=20` | 기본값은 `10`입니다. |
+| `DETECTBOT_REPORTS_DIR` | 업로드/저장 리포트 디렉터리를 지정합니다. | 리포트 파일 저장 위치로 사용됩니다. 상대 경로면 포털 루트 기준으로 해석됩니다. | `set DETECTBOT_REPORTS_DIR=D:\detectbot\reports` | 기본값은 `detectbot_portal/data/reports`입니다. |
+| `DETECTBOT_AUTO_SEED_DEMO_DATA` | 데모 데이터 자동 seed 여부를 제어합니다. | `1`, `true`, `yes`, `on`이면 자동 seed를 켠 상태로 설정됩니다. | `set DETECTBOT_AUTO_SEED_DEMO_DATA=false` | 기본값은 `true`입니다. |
+| `DETECTBOT_SETTINGS_ENCRYPTION_KEY` | 설정 UI의 비밀번호 암호화/복호화 키를 지정합니다. | Fernet key로 PostgreSQL `password_enc` 값을 암호화하거나 복호화합니다. | `set DETECTBOT_SETTINGS_ENCRYPTION_KEY=<fernet-key>` | 암호화 비밀번호를 쓰려면 유효한 Fernet key가 필요합니다. |
+| `DETECTBOT_ADMIN_USERNAME` | 최초 관리자 계정 ID를 지정합니다. | 활성 admin 계정이 없을 때 초기 admin 생성에 사용됩니다. | `set DETECTBOT_ADMIN_USERNAME=admin` | 기존 admin이 있으면 새로 만들지 않습니다. |
+| `DETECTBOT_ADMIN_PASSWORD` | 최초 관리자 계정 비밀번호를 지정합니다. | 활성 admin 계정이 없을 때 초기 admin 비밀번호로 사용되며 비밀번호 정책 검증을 거칩니다. | `set DETECTBOT_ADMIN_PASSWORD=ChangeMe123!` | 최초 admin 생성 시 `DETECTBOT_ADMIN_USERNAME`과 함께 필요합니다. |
 
 ## 백엔드 전환
 
