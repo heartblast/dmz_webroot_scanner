@@ -151,6 +151,27 @@ streamlit run detectbot_portal/app.py
 
 포털 설정 UI에서는 `DETECTBOT_SETTINGS_ENCRYPTION_KEY` 환경변수를 사용해 `detectbot_portal/config/settings.yaml` 안의 PostgreSQL 비밀번호를 암호화 저장할 수 있습니다.
 
+### 포털 환경변수 옵션
+
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `DETECTBOT_CONFIG_FILE` | 포털 설정 YAML 경로를 바꿉니다. | 지정한 YAML을 기본 설정과 병합한 뒤 환경변수 값으로 다시 덮어씁니다. | `set DETECTBOT_CONFIG_FILE=D:\path\to\settings.yaml` | 기본값은 `detectbot_portal/config/settings.yaml`입니다. |
+| `DETECTBOT_DATABASE_BACKEND` | 포털 DB 백엔드를 선택합니다. | `sqlite` 또는 `postgresql` 값을 읽어 SQLAlchemy URL 생성 방식을 바꿉니다. | `set DETECTBOT_DATABASE_BACKEND=postgresql` | 기본값은 `sqlite`입니다. |
+| `DETECTBOT_SQLITE_PATH` | SQLite DB 파일 경로를 지정합니다. | SQLite backend일 때 DB 파일 위치로 사용됩니다. 상대 경로면 포털 루트 기준으로 해석됩니다. | `set DETECTBOT_SQLITE_PATH=D:\data\detectbot.sqlite3` | 기본값은 `detectbot_portal/data/detectbot_portal.sqlite3`입니다. |
+| `DETECTBOT_POSTGRES_HOST` | PostgreSQL host를 지정합니다. | PostgreSQL SQLAlchemy URL의 host에 반영됩니다. | `set DETECTBOT_POSTGRES_HOST=localhost` | 기본값은 `localhost`입니다. |
+| `DETECTBOT_POSTGRES_PORT` | PostgreSQL port를 지정합니다. | 정수로 변환되어 PostgreSQL 연결 URL에 반영됩니다. | `set DETECTBOT_POSTGRES_PORT=5432` | 기본값은 `5432`입니다. |
+| `DETECTBOT_POSTGRES_DB` | PostgreSQL database 이름을 지정합니다. | PostgreSQL 연결 URL의 database에 반영됩니다. | `set DETECTBOT_POSTGRES_DB=detectbot_portal` | 기본값은 `detectbot_portal`입니다. |
+| `DETECTBOT_POSTGRES_USER` | PostgreSQL 사용자명을 지정합니다. | PostgreSQL 연결 URL의 user에 반영됩니다. | `set DETECTBOT_POSTGRES_USER=detectbot` | 기본값은 `detectbot`입니다. |
+| `DETECTBOT_POSTGRES_PASSWORD` | PostgreSQL 비밀번호를 지정합니다. | YAML의 평문/암호화 비밀번호보다 우선해 PostgreSQL 연결 URL에 사용됩니다. | `set DETECTBOT_POSTGRES_PASSWORD=detectbot` | 기본값은 빈 값입니다. 환경변수에 있으면 `password_enc` 복호화 결과보다 우선합니다. |
+| `DETECTBOT_POSTGRES_POOL_PRE_PING` | PostgreSQL connection pool pre-ping을 제어합니다. | `1`, `true`, `yes`, `on`이면 true로 처리됩니다. | `set DETECTBOT_POSTGRES_POOL_PRE_PING=true` | 기본값은 `true`입니다. |
+| `DETECTBOT_POSTGRES_POOL_SIZE` | PostgreSQL pool size를 지정합니다. | 정수로 변환되어 SQLAlchemy pool 설정에 반영됩니다. | `set DETECTBOT_POSTGRES_POOL_SIZE=10` | 기본값은 `5`입니다. |
+| `DETECTBOT_POSTGRES_MAX_OVERFLOW` | PostgreSQL pool overflow 크기를 지정합니다. | 정수로 변환되어 SQLAlchemy pool 설정에 반영됩니다. | `set DETECTBOT_POSTGRES_MAX_OVERFLOW=20` | 기본값은 `10`입니다. |
+| `DETECTBOT_REPORTS_DIR` | 업로드/저장 리포트 디렉터리를 지정합니다. | 리포트 파일 저장 위치로 사용됩니다. 상대 경로면 포털 루트 기준으로 해석됩니다. | `set DETECTBOT_REPORTS_DIR=D:\detectbot\reports` | 기본값은 `detectbot_portal/data/reports`입니다. |
+| `DETECTBOT_AUTO_SEED_DEMO_DATA` | 데모 데이터 자동 seed 여부를 제어합니다. | `1`, `true`, `yes`, `on`이면 자동 seed를 켠 상태로 설정됩니다. | `set DETECTBOT_AUTO_SEED_DEMO_DATA=false` | 기본값은 `true`입니다. |
+| `DETECTBOT_SETTINGS_ENCRYPTION_KEY` | 설정 UI의 비밀번호 암호화/복호화 키를 지정합니다. | Fernet key로 PostgreSQL `password_enc` 값을 암호화하거나 복호화합니다. | `set DETECTBOT_SETTINGS_ENCRYPTION_KEY=<fernet-key>` | 암호화 비밀번호를 쓰려면 유효한 Fernet key가 필요합니다. |
+| `DETECTBOT_ADMIN_USERNAME` | 최초 관리자 계정 ID를 지정합니다. | 활성 admin 계정이 없을 때 초기 admin 생성에 사용됩니다. | `set DETECTBOT_ADMIN_USERNAME=admin` | 기존 admin이 있으면 새로 만들지 않습니다. |
+| `DETECTBOT_ADMIN_PASSWORD` | 최초 관리자 계정 비밀번호를 지정합니다. | 활성 admin 계정이 없을 때 초기 admin 비밀번호로 사용되며 비밀번호 정책 검증을 거칩니다. | `set DETECTBOT_ADMIN_PASSWORD=ChangeMe123!` | 최초 admin 생성 시 `DETECTBOT_ADMIN_USERNAME`과 함께 필요합니다. |
+
 ### 배포용 빌드 스크립트
 
 저장소에는 아래 스크립트가 포함되어 있습니다.
@@ -230,64 +251,78 @@ apachectl -S 2>&1 | ./detectbot \
 
 ### 입력 옵션
 
-- `--server-type nginx|apache|manual`
-- `--nginx-dump <path|->`
-- `--apache-dump <path|->`
-- `--watch-dir <path>` 반복 가능
-- `--config <yaml|json>`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--server-type nginx\|apache\|manual` | 스캔 대상 경로를 어떤 방식으로 수집할지 지정합니다. | `nginx`는 `--nginx-dump`, `apache`는 `--apache-dump`, `manual`은 최소 1개 이상의 `--watch-dir`가 필요합니다. 값이 없으면 dump 옵션 존재 여부로 nginx/apache를 보정하거나, 지정된 `watch-dir`만 수동 경로로 추가합니다. | `--server-type manual --watch-dir /var/www/html` | 미지정 가능. 잘못된 조합은 실행 초기에 오류로 중단됩니다. |
+| `--nginx-dump <path\|->` | `nginx -T` 출력에서 웹 루트 경로를 추출합니다. | 파일 경로나 `-` stdin을 읽고 `root`, `alias` 지시어를 파싱해 scan root에 추가합니다. 이 옵션이 있으면 `server_type`이 비어 있을 때 `nginx`로 설정됩니다. | `nginx -T 2>&1 \| ./detectbot --nginx-dump - --scan` | `--server-type nginx`와 함께 쓰는 것이 명확합니다. |
+| `--apache-dump <path\|->` | `apachectl -S` 출력에서 DocumentRoot 경로를 추출합니다. | 파일 경로나 `-` stdin을 읽고 Apache DocumentRoot 정보를 scan root에 추가합니다. 이 옵션이 있으면 `server_type`이 비어 있을 때 `apache`로 설정됩니다. | `apachectl -S 2>&1 \| ./detectbot --apache-dump - --scan` | `--server-type apache`와 함께 쓰는 것이 명확합니다. |
+| `--watch-dir <path>` | 사용자가 직접 점검할 디렉터리를 추가합니다. | 반복 지정한 모든 경로를 `manual` source의 scan root로 추가합니다. nginx/apache dump에서 추출한 경로와 함께 사용할 수도 있습니다. | `--watch-dir /var/www/html --watch-dir /srv/uploads` | 반복 가능. `--server-type manual`에서는 최소 1개가 필요합니다. |
+| `--config <yaml\|json>` | YAML 또는 JSON 설정 파일을 먼저 읽습니다. | 플래그 등록 전에 설정 파일을 로드한 뒤 CLI 인자로 덮어씁니다. `.yaml`, `.yml`, `.json`만 지원합니다. | `--config sample_config.yaml --watch-dir /extra/path` | CLI 값이 설정 파일보다 우선합니다. `watch_dir`, `content_ext`, `pii_ext`, `output` alias도 지원합니다. |
 
 ### 스캔 옵션
 
-- `--scan`
-- `--exclude <path>` 반복 가능
-- `--max-depth <n>`
-- `--newer-than-h <hours>`
-- `--workers <n>`
-- `--hash`
-- `--max-size-mb <n>`
-- `--follow-symlink`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--scan` | 발견한 root 아래 파일을 실제로 검사합니다. | 켜져 있으면 파일 시스템을 순회하고 활성 룰을 평가해 findings를 생성합니다. 꺼져 있으면 root 목록만 리포트에 기록합니다. | `--scan --out /tmp/report.json` | 기본값은 `false`입니다. `--preset`을 쓰면 대부분 `true`로 설정됩니다. |
+| `--exclude <path>` | 특정 경로 이하를 스캔에서 제외합니다. | 경로를 정규화한 뒤 prefix로 비교합니다. 디렉터리가 제외되면 하위 탐색도 건너뜁니다. Windows에서는 대소문자를 구분하지 않습니다. | `--exclude /var/www/html/cache --exclude /var/www/html/tmp` | 반복 가능. 정확한 경로 또는 그 하위 경로가 제외됩니다. |
+| `--max-depth <n>` | root 기준 재귀 탐색 깊이를 제한합니다. | `depth(root, path) > n`인 경로를 건너뜁니다. 디렉터리면 하위 탐색도 중단합니다. | `--max-depth 5` | 기본값은 `12`입니다. 코드상 `0`은 제한 없음처럼 비교되지만 기본값 적용 단계에서 `12`로 채워집니다. |
+| `--newer-than-h <hours>` | 최근 N시간 안에 수정된 파일만 finding 평가 대상으로 삼습니다. | 파일의 `mod_time`이 현재 시각 기준 N시간보다 오래되면 MIME/룰 평가 전에 제외합니다. | `--newer-than-h 24` | 기본값 `0`은 시간 필터를 사용하지 않습니다. |
+| `--workers <n>` | 파일 평가 worker 수를 지정합니다. | 파일 경로 채널을 여러 goroutine이 병렬로 소비해 컨텍스트 생성과 룰 평가를 수행합니다. | `--workers 8` | 기본값은 `4`입니다. `0` 이하로 들어오면 기본값 적용 후 `4`가 됩니다. |
+| `--hash` | finding에 SHA256을 계산하려는 옵션입니다. | 현재 코드에는 플래그와 설정 필드, 해시 계산 함수가 있지만 finding 생성 경로에서 호출되지 않습니다. | `--hash` | 현재 리포트의 `sha256` 값은 이 옵션만으로 채워지지 않습니다. |
+| `--max-size-mb <n>` | 대용량 파일 읽기 제한을 설정하려는 옵션입니다. | 현재 코드에서는 설정값과 리포트 config에는 남지만 MIME sniff, hash, content scan 제한에 직접 사용되지 않습니다. | `--max-size-mb 100` | 기본값은 `100`입니다. 실제 대용량 판단 룰은 코드상 50MB 고정 기준을 사용합니다. |
+| `--follow-symlink` | symlink, Windows reparse point를 따라갈지 정합니다. | 꺼져 있으면 symlink 파일/디렉터리를 건너뜁니다. Windows에서는 접합점/마운트 포인트 같은 reparse point도 보수적으로 건너뜁니다. | `--follow-symlink` | 기본값은 `false`입니다. 순환 경로나 예상 밖 영역 스캔 위험이 있어 신중히 사용합니다. |
 
 ### 정책/룰 옵션
 
-- `--allow-mime-prefix <prefix>` 반복 가능
-- `--allow-ext <ext>` 반복 가능
-- `--enable-rules <name>` 반복 가능 또는 comma-separated
-- `--disable-rules <name>` 반복 가능 또는 comma-separated
-- `--preset safe|balanced|deep|handover|offboarding`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--allow-mime-prefix <prefix>` | 허용할 MIME 타입 prefix를 지정합니다. | `allowlist` 룰이 sniff된 MIME과 비교합니다. 값이 정확히 같거나, `/`, `-`로 끝나는 prefix와 앞부분이 맞으면 허용됩니다. 허용되지 않으면 `mime_not_in_allowlist` finding 사유가 붙습니다. | `--allow-mime-prefix text/html --allow-mime-prefix image/` | 반복 가능. 기본값은 html/css/js/json, image/font, xml, text/plain 계열입니다. |
+| `--allow-ext <ext>` | 허용할 파일 확장자를 지정합니다. | `allowlist` 룰이 파일 확장자를 소문자로 비교합니다. 허용되지 않은 확장자는 `ext_not_in_allowlist` 사유가 붙습니다. | `--allow-ext .html --allow-ext .css --allow-ext .js` | 반복 가능. 기본값은 정적 웹 자산 중심 확장자입니다. 확장자가 없는 파일은 확장자 allowlist 위반을 만들지 않습니다. |
+| `--enable-rules <name>` | 룰 이름을 명시적으로 활성화 목록에 추가합니다. | 기본 룰셋을 만든 뒤 enable/disable map으로 필터링합니다. 현재 생성되는 룰 이름은 `allowlist`, `high_risk_ext`, `large_file`, `ext_mime_mismatch`, `secret_patterns`, `pii_patterns`입니다. | `--enable-rules secret_patterns,pii_patterns` | 반복 또는 comma-separated 가능. 단, content/PII 룰은 각각 `--content-scan`, `--pii-scan`이 켜져야 룰셋에 생성됩니다. |
+| `--disable-rules <name>` | 특정 룰을 비활성화합니다. | 룰 이름을 `false`로 표시한 뒤 해당 룰을 최종 룰셋에서 제외합니다. | `--disable-rules large_file --disable-rules ext_mime_mismatch` | 반복 또는 comma-separated 가능. `disable`이 같은 이름의 `enable`보다 나중에 적용됩니다. |
+| `--preset safe\|balanced\|deep\|handover\|offboarding` | 미리 정의된 스캔 강도/목적별 설정을 적용합니다. | 설정 파일과 CLI 파싱 후, 아직 비어 있는 일부 값(`scan`, `max_depth`, `workers`, `content_scan`, `content_max_bytes`)을 preset 값으로 채웁니다. | `--preset balanced --watch-dir /var/www/html` | 기본값 없음. CLI에서 이미 지정한 값은 preset이 덮어쓰지 않습니다. `deep`의 `max_depth=0`은 이후 기본값 처리로 `12`가 됩니다. |
 
 ### 콘텐츠 스캔 옵션
 
-- `--content-scan`
-- `--content-max-bytes <n>`
-- `--content-max-size-kb <n>`
-- `--content-ext <ext>` 반복 가능
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--content-scan` | 파일 본문에서 비밀정보/접속정보 패턴을 찾습니다. | `secret_patterns` 룰을 룰셋에 추가합니다. 대상 확장자와 크기 제한을 통과한 텍스트성 파일에서 샘플을 읽고 credential, connection string, private key, 내부 endpoint 등 패턴을 평가합니다. | `--content-scan --content-ext .env --content-ext .yaml` | 기본값은 `false`입니다. preset `balanced`, `deep`, `offboarding`은 켤 수 있습니다. |
+| `--content-max-bytes <n>` | 콘텐츠 스캔에서 파일당 읽을 최대 바이트 수를 지정합니다. | 샘플 읽기 상한으로 사용됩니다. 파일이 이 값보다 크면 앞부분만 읽고 finding에는 `content_flags: truncated`가 기록될 수 있습니다. | `--content-max-bytes 131072` | 기본값은 `65536`입니다. PII 스캔도 함께 켜져 있으면 더 큰 값이 통합 샘플 읽기 상한으로 사용됩니다. |
+| `--content-max-size-kb <n>` | 콘텐츠 스캔 대상 파일의 최대 크기를 KB로 제한합니다. | 파일 크기가 제한보다 크면 본문 샘플을 읽지 않습니다. PII 스캔 제한과 함께 비교해 더 큰 제한이 통합 샘플 읽기 기준으로 사용됩니다. | `--content-max-size-kb 2048` | 기본값은 `1024`입니다. |
+| `--content-ext <ext>` | 콘텐츠 스캔 대상 확장자를 지정합니다. | 지정된 확장자를 소문자로 비교해 텍스트성 스캔 대상 여부를 판단합니다. | `--content-ext .env --content-ext .properties` | 반복 가능. 기본값은 `.yaml`, `.json`, `.xml`, `.properties`, `.conf`, `.env`, `.ini`, `.txt`, `.config`, `.cfg`, `.toml` 등입니다. |
 
 ### PII 스캔 옵션
 
-- `--pii-scan`
-- `--pii-ext <ext>` 반복 가능
-- `--pii-max-size-kb <n>`
-- `--pii-max-bytes <n>`
-- `--pii-max-matches <n>`
-- `--pii-mask`
-- `--pii-store-sample`
-- `--pii-context-keywords`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--pii-scan` | 파일 본문에서 개인정보 패턴을 찾습니다. | `pii_patterns` 룰을 룰셋에 추가합니다. 주민등록번호, 외국인등록번호, 여권번호, 운전면허번호, 카드번호, 계좌번호, 휴대전화번호, 이메일 패턴을 평가합니다. | `--pii-scan --pii-mask --pii-store-sample` | 기본값은 `false`입니다. preset만으로는 현재 코드에서 자동 활성화되지 않습니다. |
+| `--pii-ext <ext>` | PII 스캔 대상 확장자를 지정합니다. | 확장자 앞에 `.`이 없으면 코드에서 자동으로 붙인 뒤 비교합니다. | `--pii-ext json --pii-ext .txt` | 반복 가능. 기본값은 `.yaml`, `.json`, `.xml`, `.properties`, `.conf`, `.env`, `.ini`, `.txt`, `.log`, `.csv`, `.tsv` 등입니다. |
+| `--pii-max-size-kb <n>` | PII 스캔 대상 파일의 최대 크기를 KB로 제한합니다. | 파일 크기가 제한보다 크면 본문 샘플을 읽지 않습니다. 콘텐츠 스캔 제한과 함께 비교해 더 큰 제한이 통합 샘플 읽기 기준으로 사용됩니다. | `--pii-max-size-kb 512` | 기본값은 `256`입니다. |
+| `--pii-max-bytes <n>` | PII 스캔에서 파일당 읽을 최대 바이트 수를 지정합니다. | 샘플 읽기 상한으로 사용됩니다. 콘텐츠 스캔도 함께 켜져 있으면 더 큰 값이 통합 샘플 읽기 상한으로 사용됩니다. | `--pii-max-bytes 65536` | 기본값은 `65536`입니다. |
+| `--pii-max-matches <n>` | PII 룰별로 저장할 최대 매칭 수를 제한합니다. | PII 룰에 `MaxMatches`로 전달되어 결과에 담는 매칭 개수를 제한합니다. | `--pii-max-matches 3` | 기본값은 `5`입니다. |
+| `--pii-mask` | PII 값을 마스킹해 결과에 저장합니다. | PII 룰의 `MaskSensitive` 설정으로 전달되어 evidence 값을 가린 형태로 남깁니다. | `--pii-mask` | 기본값은 `false`입니다. 민감정보 리포트 공유 시 권장됩니다. |
+| `--pii-store-sample` | PII 탐지 샘플을 결과에 저장합니다. | PII 룰의 `StoreSample` 설정으로 전달되어 evidence 저장 여부에 영향을 줍니다. | `--pii-store-sample` | 기본값은 `false`입니다. `--pii-mask`와 함께 쓰는 것이 안전합니다. |
+| `--pii-context-keywords` | 주변 문맥 키워드를 PII 판단에 활용합니다. | PII 룰의 `UseContextKeywords` 설정으로 전달되어 주민번호/계좌번호 등 숫자 패턴의 탐지 신뢰도 판단에 사용됩니다. | `--pii-context-keywords` | 기본값은 `false`입니다. |
 
 ### 출력 옵션
 
-- `--out <path|->`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--out <path\|->` | JSON 리포트 출력 위치를 지정합니다. | `-`이면 stdout으로 pretty JSON을 쓰고, 그 외에는 해당 경로에 파일을 생성합니다. 로그는 stderr로 출력됩니다. | `--out /tmp/report.json` 또는 `--out -` | 현재 기본값이 비어 있으면 파일 생성 경로도 비어 오류가 날 수 있으므로 명시하는 것이 안전합니다. |
 
 ### Kafka 옵션
 
-- `--kafka-enabled`
-- `--kafka-brokers <a,b,c>`
-- `--kafka-topic <topic>`
-- `--kafka-client-id <id>`
-- `--kafka-tls`
-- `--kafka-sasl-enabled`
-- `--kafka-username <user>`
-- `--kafka-password-env <env>`
-- `--kafka-mask-sensitive`
+| 옵션 | 설명 | 실제 동작 | 사용 예시 | 기본값/주의사항 |
+| --- | --- | --- | --- | --- |
+| `--kafka-enabled` | 스캔 완료 후 Kafka 이벤트 전송을 켭니다. | 로컬 JSON 리포트 작성 후 요약 이벤트를 Kafka로 전송합니다. 전송 실패는 경고 로그만 남기고 스캔 결과 생성 자체는 중단하지 않습니다. | `--kafka-enabled --kafka-brokers broker1:9092 --kafka-topic dmz.scan.findings` | 기본값은 `false`입니다. brokers와 topic이 없으면 전송 오류가 납니다. |
+| `--kafka-brokers <a,b,c>` | Kafka 브로커 목록을 지정합니다. | comma-separated 또는 반복 입력을 받아 `kgo.SeedBrokers`에 전달합니다. | `--kafka-brokers broker1:9092,broker2:9092` | 반복 가능. `--kafka-enabled` 사용 시 필요합니다. |
+| `--kafka-topic <topic>` | 이벤트를 발행할 Kafka topic을 지정합니다. | 요약 이벤트 record의 topic으로 사용됩니다. | `--kafka-topic dmz.scan.findings` | `--kafka-enabled` 사용 시 필요합니다. |
+| `--kafka-client-id <id>` | Kafka client id를 지정합니다. | 값이 있으면 Kafka 클라이언트 옵션에 `ClientID`로 설정합니다. | `--kafka-client-id detectbot-web01` | 기본값은 빈 값입니다. |
+| `--kafka-tls` | Kafka 연결에 TLS를 사용합니다. | TLS dial config를 추가합니다. 현재 코드는 `InsecureSkipVerify: true`로 동작합니다. | `--kafka-tls` | 기본값은 `false`입니다. 인증서 검증을 건너뛰므로 운영 적용 전 검토가 필요합니다. |
+| `--kafka-sasl-enabled` | Kafka SASL 인증 사용을 표시합니다. | 환경변수에서 비밀번호를 읽고 안내 로그를 출력하지만, 실제 SASL 인증 옵션은 아직 구현되어 있지 않습니다. | `--kafka-sasl-enabled --kafka-username detectbot --kafka-password-env KAFKA_PASSWORD` | 현재 stub 상태입니다. SASL 필수 브로커에서는 인증되지 않을 수 있습니다. |
+| `--kafka-username <user>` | SASL 사용자명을 지정합니다. | SASL 안내 로그에 사용되며, 현재 실제 인증 옵션으로는 전달되지 않습니다. | `--kafka-username detectbot` | `--kafka-sasl-enabled`와 함께 쓰는 값입니다. |
+| `--kafka-password-env <env>` | Kafka 비밀번호를 담은 환경변수 이름을 지정합니다. | `os.Getenv()`으로 해당 환경변수를 읽지만, 현재 SASL 구현 stub 때문에 실제 인증에는 사용되지 않습니다. | `KAFKA_PASSWORD=secret ./detectbot --kafka-password-env KAFKA_PASSWORD` | 비밀번호를 CLI 인자나 설정 파일에 직접 쓰지 않기 위한 형태입니다. |
+| `--kafka-mask-sensitive` | Kafka 이벤트의 민감 경로 정보를 마스킹합니다. | finding path에서 파일명만 남기고 앞 경로를 `[MASKED]`로 바꿔 전송합니다. | `--kafka-mask-sensitive` | 기본값은 `false`입니다. 외부 SIEM/파이프라인 전송 시 권장됩니다. |
 
 ## 설정 파일
 
