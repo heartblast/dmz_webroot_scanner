@@ -28,6 +28,21 @@ server_service = ServerService()
 policy_service = PolicyService()
 
 
+def format_upload_limit(size_mb: int) -> str:
+    return f"{int(size_mb)}MB"
+
+
+def uploaded_file_size(uploaded_file) -> int:
+    size = getattr(uploaded_file, "size", None)
+    if size is not None:
+        return int(size)
+    return len(uploaded_file.getbuffer())
+
+
+def is_upload_size_allowed(size_bytes: int, max_size_mb: int) -> bool:
+    return size_bytes <= int(max_size_mb) * 1024 * 1024
+
+
 def server_label(servers_df, server_id):
     if not server_id:
         return "전체 서버"
@@ -195,9 +210,18 @@ st.caption("좌측 메뉴에서 다른 화면으로 이동할 수 있으며, 이
 tab_upload, tab_history = st.tabs(["리포트 업로드", "저장 이력"])
 
 with tab_upload:
-    st.info("JSON 리포트를 업로드하면 포털에 저장되고, 업로드 직후 저장 이력 탭에서 해당 실행 이력을 바로 확인할 수 있습니다.")
+    upload_limit_label = format_upload_limit(settings.max_upload_size_mb)
+    st.info(
+        "JSON 리포트를 업로드하면 포털에 저장되고, 업로드 직후 저장 이력 탭에서 해당 실행 이력을 바로 확인할 수 있습니다. "
+        f"현재 업로드 허용 크기는 {upload_limit_label}입니다."
+    )
     with st.form("scan_upload_form"):
-        uploaded_file = st.file_uploader("리포트 파일", type=["json"], help="DetectBot JSON 리포트를 업로드합니다.")
+        uploaded_file = st.file_uploader(
+            "리포트 파일",
+            type=["json"],
+            help=f"DetectBot JSON 리포트를 업로드합니다. 최대 {upload_limit_label}까지 저장할 수 있습니다.",
+            max_upload_size=settings.max_upload_size_mb,
+        )
         original_path = st.text_input("원본 리포트 경로", placeholder="예: /var/reports/report.json")
         uploaded_by = st.text_input("업로드 사용자", value="portal-admin")
         selected_server_id = st.selectbox(
@@ -221,6 +245,13 @@ with tab_upload:
             if uploaded_file is None:
                 st.error("먼저 업로드할 JSON 리포트 파일을 선택해 주세요.")
             else:
+                file_size = uploaded_file_size(uploaded_file)
+                if not is_upload_size_allowed(file_size, settings.max_upload_size_mb):
+                    st.error(
+                        "업로드 파일이 허용 크기를 초과했습니다. "
+                        f"현재 제한은 {upload_limit_label}이며, Settings에서 조정할 수 있습니다."
+                    )
+                    st.stop()
                 result = scan_service.ingest_report(
                     uploaded_file.getvalue(),
                     uploaded_file.name,

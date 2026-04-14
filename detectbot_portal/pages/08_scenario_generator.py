@@ -81,8 +81,6 @@ render_portal_sidebar(settings, current_user)
 
 render_portal_header("시나리오 생성기", "운영 상황에 맞는 시나리오를 선택해 Detect Bot 옵션을 조합하고 CLI/YAML/JSON까지 바로 생성합니다.")
 
-st.info("기존 streamlit_app 시나리오 생성 UX를 포털 구조에 맞게 옮긴 페이지입니다.")
-
 st.markdown("### 추천 팩")
 pack_cols = st.columns(len(RECOMMENDED_PACKS))
 for idx, (pack_id, pack) in enumerate(RECOMMENDED_PACKS.items()):

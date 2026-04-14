@@ -481,12 +481,11 @@ Version: v1.1.3
 
 `--out -`를 사용하면 JSON은 stdout으로, 로그는 stderr로 분리됩니다.
 
-## 보조 UI
+## Portal UI
 
-이 저장소에는 보조 UI도 포함되어 있습니다.
+이 저장소에는 현재 포털 UI가 포함되어 있습니다.
 
-- `streamlit_app/`: 옵션 생성과 리포트 해석용 Streamlit UI
-- `detectbot_portal/`: 리포트 업로드/조회 중심 포털 UI
+- `detectbot_portal/`: 서버 인벤토리, 리포트 업로드/조회, 옵션 생성, 시나리오 생성, 사용자 관리를 제공하는 Streamlit 기반 포털 UI
 
 CLI 엔트리포인트 실행 파일은 `cmd/detectbot`입니다.
 

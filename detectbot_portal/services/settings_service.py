@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 
 from config.crypto import SettingsCryptoError, encrypt_secret
-from config.settings import DEFAULT_CONFIG_PATH, load_settings
+from config.settings import DEFAULT_CONFIG_PATH, normalize_upload_size_mb, load_settings
 
 
 class SettingsService:
@@ -56,6 +56,9 @@ class SettingsService:
                 "auto_seed_demo_data": raw.get("app", {}).get(
                     "auto_seed_demo_data", settings.auto_seed_demo_data
                 ),
+                "max_upload_size_mb": normalize_upload_size_mb(
+                    raw.get("app", {}).get("max_upload_size_mb", settings.max_upload_size_mb)
+                ),
             },
             "config_path": str(self.config_path),
             "config_error": settings.config_error,
@@ -97,6 +100,9 @@ class SettingsService:
         document["app"] = {
             "reports_dir": payload["app"]["reports_dir"],
             "auto_seed_demo_data": bool(payload["app"]["auto_seed_demo_data"]),
+            "max_upload_size_mb": normalize_upload_size_mb(
+                payload["app"].get("max_upload_size_mb")
+            ),
         }
         self._write_yaml(document)
 

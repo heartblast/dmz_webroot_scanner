@@ -14,6 +14,9 @@ PORTAL_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = PORTAL_ROOT / "config" / "settings.yaml"
 DEFAULT_SQLITE_PATH = PORTAL_ROOT / "data" / "detectbot_portal.sqlite3"
 DEFAULT_REPORTS_DIR = PORTAL_ROOT / "data" / "reports"
+DEFAULT_MAX_UPLOAD_SIZE_MB = 10
+MIN_UPLOAD_SIZE_MB = 1
+MAX_UPLOAD_SIZE_MB = 2048
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -31,6 +34,14 @@ def _load_yaml_config(path: Path) -> dict[str, Any]:
         return {}
     loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     return loaded if isinstance(loaded, dict) else {}
+
+
+def normalize_upload_size_mb(value: Any, default: int = DEFAULT_MAX_UPLOAD_SIZE_MB) -> int:
+    try:
+        size_mb = int(value)
+    except (TypeError, ValueError):
+        size_mb = default
+    return max(MIN_UPLOAD_SIZE_MB, min(MAX_UPLOAD_SIZE_MB, size_mb))
 
 
 @dataclass(frozen=True)
@@ -65,6 +76,7 @@ class AppSettings:
     database: DatabaseSettings
     reports_dir: Path
     auto_seed_demo_data: bool
+    max_upload_size_mb: int
     config_error: str | None = None
 
 
@@ -91,6 +103,7 @@ def load_settings() -> AppSettings:
         "app": {
             "reports_dir": str(DEFAULT_REPORTS_DIR),
             "auto_seed_demo_data": True,
+            "max_upload_size_mb": DEFAULT_MAX_UPLOAD_SIZE_MB,
         },
     }
 
@@ -136,6 +149,10 @@ def load_settings() -> AppSettings:
     if not reports_dir.is_absolute():
         reports_dir = (PORTAL_ROOT / reports_dir).resolve()
 
+    max_upload_size_mb = normalize_upload_size_mb(
+        os.getenv("DETECTBOT_MAX_UPLOAD_SIZE_MB", merged["app"].get("max_upload_size_mb"))
+    )
+
     database = DatabaseSettings(
         backend=str(merged["database"]["backend"]).strip().lower(),
         sqlite_path=sqlite_path,
@@ -156,5 +173,6 @@ def load_settings() -> AppSettings:
             os.getenv("DETECTBOT_AUTO_SEED_DEMO_DATA", merged["app"]["auto_seed_demo_data"])
         ).lower()
         in {"1", "true", "yes", "on"},
+        max_upload_size_mb=max_upload_size_mb,
         config_error=config_error,
     )

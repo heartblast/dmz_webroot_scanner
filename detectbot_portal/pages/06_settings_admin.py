@@ -3,7 +3,7 @@ import streamlit as st
 from auth.session import require_role
 from bootstrap import bootstrap_portal
 from config.crypto import ENCRYPTION_KEY_ENV, SettingsCryptoError
-from config.settings import load_settings
+from config.settings import MAX_UPLOAD_SIZE_MB, MIN_UPLOAD_SIZE_MB, load_settings
 from lib.navigation import render_portal_sidebar
 from services.settings_service import SettingsService
 
@@ -94,6 +94,13 @@ with st.form("settings_editor_form"):
         "Auto Seed Demo Data",
         value=bool(editor_state["app"]["auto_seed_demo_data"]),
     )
+    max_upload_size_mb = st.number_input(
+        "Max Report Upload Size (MB)",
+        min_value=MIN_UPLOAD_SIZE_MB,
+        max_value=MAX_UPLOAD_SIZE_MB,
+        value=int(editor_state["app"]["max_upload_size_mb"]),
+        help="리포트 업로드 및 저장 이력 화면에서 허용할 JSON 파일 크기입니다.",
+    )
 
     submitted = st.form_submit_button("Save Settings", width="stretch")
     if submitted:
@@ -120,6 +127,7 @@ with st.form("settings_editor_form"):
                     "app": {
                         "reports_dir": reports_dir,
                         "auto_seed_demo_data": bool(auto_seed_demo_data),
+                        "max_upload_size_mb": int(max_upload_size_mb),
                     },
                 }
             )
