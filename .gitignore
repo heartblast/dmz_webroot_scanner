@@ -1,4 +1,6 @@
 dist/*
+.env
+.streamlit/secrets.toml
 
 # Local portal databases and generated report artifacts
 detectbot_portal/data/

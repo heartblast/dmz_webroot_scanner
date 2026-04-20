@@ -1,0 +1,29 @@
+.git
+.gitignore
+.env
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tmp_seed_test/
+.tmp_seed_test2/
+
+# Keep Streamlit runtime config, but never bake local secrets into the image.
+.streamlit/secrets.toml
+
+# Exclude local/generated portal data. Docker Compose mounts this path as a volume.
+detectbot_portal/data/
+detectbot_portal/detectbot_portal/data/
+
+# Exclude generic build output, but keep portal download binaries used by the UI.
+dist/
+!detectbot_portal/dist/
+!detectbot_portal/dist/**
+
+*.log

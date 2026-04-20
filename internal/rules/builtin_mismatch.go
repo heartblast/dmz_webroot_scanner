@@ -19,7 +19,8 @@ func (r *ExtMimeMismatchRule) Evaluate(ctx model.FileCtx) []Reason {
 	m := strings.ToLower(ctx.Mime) // MIME 타입을 소문자로 변환
 
 	// 이미지 확장자인데 MIME에 image/*가 아니면 위장 가능성
-	if isImageExt(ctx.Ext) && !strings.HasPrefix(m, "image/") {
+	ext := policyExt(ctx)
+	if isImageExt(ext) && !strings.HasPrefix(m, "image/") {
 		out = append(out, Reason{
 			Code:     "ext_mime_mismatch_image",
 			Severity: SevHigh,
@@ -28,7 +29,7 @@ func (r *ExtMimeMismatchRule) Evaluate(ctx model.FileCtx) []Reason {
 	}
 
 	// 텍스트파일(js/css/html)일 때 zip으로 탐지되면
-	if (ctx.Ext == ".js" || ctx.Ext == ".css" || ctx.Ext == ".html") && strings.HasPrefix(m, "application/zip") {
+	if (ext == ".js" || ext == ".css" || ext == ".html") && strings.HasPrefix(m, "application/zip") {
 		out = append(out, Reason{
 			Code:     "ext_mime_mismatch_archive",
 			Severity: SevHigh,

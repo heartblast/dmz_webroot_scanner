@@ -412,7 +412,7 @@ func applyDefaults(cfg *Config) {
 	}
 	if len(cfg.AllowExt) == 0 {
 		cfg.AllowExt = []string{
-			".html", ".htm", ".css", ".js", ".mjs", ".json", ".xml", ".txt",
+			".html", ".htm", ".css", ".js", ".mjs", ".json", ".xml", ".txt", ".log",
 			".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico",
 			".woff", ".woff2", ".ttf", ".otf", ".eot",
 		}

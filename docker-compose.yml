@@ -1,0 +1,49 @@
+services:
+  detectbot_portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      DETECTBOT_CONFIG_FILE: ${DETECTBOT_CONFIG_FILE:-/app/detectbot_portal/config/settings.docker.yaml}
+      DETECTBOT_DATABASE_BACKEND: ${DETECTBOT_DATABASE_BACKEND:-sqlite}
+      DETECTBOT_SQLITE_PATH: ${DETECTBOT_SQLITE_PATH:-/app/detectbot_portal/data/detectbot_portal.sqlite3}
+      DETECTBOT_REPORTS_DIR: ${DETECTBOT_REPORTS_DIR:-/app/detectbot_portal/data/reports}
+      DETECTBOT_AUTO_SEED_DEMO_DATA: ${DETECTBOT_AUTO_SEED_DEMO_DATA:-true}
+      DETECTBOT_MAX_UPLOAD_SIZE_MB: ${DETECTBOT_MAX_UPLOAD_SIZE_MB:-10}
+      DETECTBOT_SETTINGS_ENCRYPTION_KEY: ${DETECTBOT_SETTINGS_ENCRYPTION_KEY:-}
+      DETECTBOT_ADMIN_USERNAME: ${DETECTBOT_ADMIN_USERNAME:-}
+      DETECTBOT_ADMIN_PASSWORD: ${DETECTBOT_ADMIN_PASSWORD:-}
+      DETECTBOT_POSTGRES_HOST: ${DETECTBOT_POSTGRES_HOST:-postgres}
+      DETECTBOT_POSTGRES_PORT: ${DETECTBOT_POSTGRES_PORT:-5432}
+      DETECTBOT_POSTGRES_DB: ${DETECTBOT_POSTGRES_DB:-detectbot_portal}
+      DETECTBOT_POSTGRES_USER: ${DETECTBOT_POSTGRES_USER:-detectbot}
+      DETECTBOT_POSTGRES_PASSWORD: ${DETECTBOT_POSTGRES_PASSWORD:-}
+      DETECTBOT_POSTGRES_POOL_PRE_PING: ${DETECTBOT_POSTGRES_POOL_PRE_PING:-true}
+      DETECTBOT_POSTGRES_POOL_SIZE: ${DETECTBOT_POSTGRES_POOL_SIZE:-5}
+      DETECTBOT_POSTGRES_MAX_OVERFLOW: ${DETECTBOT_POSTGRES_MAX_OVERFLOW:-10}
+    volumes:
+      - detectbot_portal_data:/app/detectbot_portal/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_DB: ${DETECTBOT_POSTGRES_DB:-detectbot_portal}
+      POSTGRES_USER: ${DETECTBOT_POSTGRES_USER:-detectbot}
+      POSTGRES_PASSWORD: ${DETECTBOT_POSTGRES_PASSWORD:-detectbot}
+      TZ: ${TZ:-Asia/Seoul}
+    volumes:
+      - detectbot_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  detectbot_portal_data:
+  detectbot_postgres_data:

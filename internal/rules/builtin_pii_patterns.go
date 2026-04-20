@@ -42,7 +42,7 @@ func (r *PIIPatternsRule) Evaluate(ctx model.FileCtx) []Reason {
 	}
 
 	// 검사 대상 확장자 필터
-	if len(r.ContentExts) > 0 && !r.ContentExts[strings.ToLower(ctx.Ext)] {
+	if len(r.ContentExts) > 0 && !r.ContentExts[policyExt(ctx)] {
 		return nil
 	}
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -64,6 +65,7 @@ func (s *Scanner) ScanRoots(roots []root.RootEntry) ([]report.Finding, int) {
 					ModTime:              ctx.ModTime.Format(time.RFC3339),
 					Perm:                 ctx.Perm,
 					Ext:                  ctx.Ext,
+					PolicyExt:            ctx.PolicyExt,
 					MimeSniff:            ctx.Mime,
 					Reasons:              toCodes(reasons),
 					Severity:             maxSeverity(reasons).String(),
@@ -190,6 +192,7 @@ func (s *Scanner) buildFileCtx(it walkItem) (model.FileCtx, bool) {
 
 	// 파일 확장자 추출 (소문자로 정규화)
 	ext := strings.ToLower(filepath.Ext(path))
+	policyExt := effectivePolicyExt(path)
 	// 파일 권한을 문자열로 변환 (예: -rw-r--r--)
 	perm := info.Mode().Perm().String()
 
@@ -221,7 +224,7 @@ func (s *Scanner) buildFileCtx(it walkItem) (model.FileCtx, bool) {
 		for _, e := range s.Cfg.PIIExts {
 			extMap[strings.ToLower(strings.TrimSpace(e))] = true
 		}
-		if isTextLikeExt(ext, extMap) && info.Size() > 0 {
+		if isTextLikeExt(extForPolicy(ext, policyExt), extMap) && info.Size() > 0 {
 			maxSize := s.Cfg.ContentMaxSizeKB * 1024
 			if s.Cfg.PIIMaxSizeKB*1024 > maxSize {
 				maxSize = s.Cfg.PIIMaxSizeKB * 1024
@@ -250,6 +253,7 @@ func (s *Scanner) buildFileCtx(it walkItem) (model.FileCtx, bool) {
 		ModTime:            info.ModTime(),
 		Perm:               perm,
 		Ext:                ext,
+		PolicyExt:          policyExt,
 		Mime:               mime,
 		ContentSample:      contentSample,
 		ContentSampleBytes: contentSampleBytes,
@@ -261,6 +265,31 @@ func (s *Scanner) buildFileCtx(it walkItem) (model.FileCtx, bool) {
 // path: 해시를 계산할 파일 경로
 // maxBytes: 읽을 최대 바이트 수 (0이면 제한 없음)
 // 반환: 16진법 SHA256 해시 문자열, 오류
+// rotatedLogDateSuffixRE matches log rotation suffixes like .20260419 and .2026-04-19.
+var rotatedLogDateSuffixRE = regexp.MustCompile(`^\.(?:\d{8}|\d{4}-\d{2}-\d{2})$`)
+
+func effectivePolicyExt(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	if !rotatedLogDateSuffixRE.MatchString(ext) {
+		return ext
+	}
+
+	stem := strings.TrimSuffix(path, filepath.Ext(path))
+	prevExt := strings.ToLower(filepath.Ext(stem))
+	if prevExt == ".log" {
+		return prevExt
+	}
+	return ext
+}
+
+func extForPolicy(ext, policyExt string) string {
+	if policyExt != "" {
+		return policyExt
+	}
+	return ext
+}
+
+// sha256FileBounded calculates a SHA256 hash while honoring an optional byte limit.
 func sha256FileBounded(path string, maxBytes int64) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {

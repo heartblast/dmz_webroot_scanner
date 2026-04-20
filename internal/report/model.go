@@ -13,6 +13,7 @@ type Finding struct {
 	ModTime              string   `json:"mod_time"`
 	Perm                 string   `json:"perm"`
 	Ext                  string   `json:"ext"`
+	PolicyExt            string   `json:"policy_ext,omitempty"`
 	MimeSniff            string   `json:"mime_sniff"`
 	Reasons              []string `json:"reasons"`
 	SHA256               string   `json:"sha256,omitempty"`

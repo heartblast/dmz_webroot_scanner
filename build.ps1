@@ -6,7 +6,7 @@ $MAIN_PKG    = "./cmd/detectbot"
 $DIST_DIR    = "dist"
 
 # 버전 정보
-$VERSION     = "1.1.3"
+$VERSION     = "1.1.4"
 $COMMIT      = (git rev-parse --short HEAD) 2>$null
 if (-not $COMMIT) { $COMMIT = "unknown" }
 
