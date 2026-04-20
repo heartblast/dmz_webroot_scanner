@@ -20,7 +20,7 @@ import (
 
 // Version and build metadata (set via ldflags when available).
 var (
-	Version   = "v1.1.3"
+	Version   = "v1.1.4"
 	BuildTime = ""
 	Commit    = ""
 )
